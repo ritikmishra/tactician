@@ -106,7 +106,7 @@ pub mod objects {
         pub fn update(&mut self, interval: f64) {
             let force = self.sun.calculate_force_applied_to_object(&self.ship.phys);
             let vel_change = force / self.ship.phys.mass * interval;
-            self.ship.phys.velocity += (vel_change * 0.5);
+            self.ship.phys.velocity += vel_change * 0.5;
             self.ship.phys.pos += self.ship.phys.velocity * interval;
         }
     }
