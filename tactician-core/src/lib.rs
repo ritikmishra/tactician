@@ -1,3 +1,5 @@
+pub use nalgebra;
+
 pub mod physics {
     use nalgebra::Vector2;
     // TODO: adjust gravitational constant to acheive desired behavior
@@ -30,10 +32,11 @@ pub mod physics {
         fn physics_details(&self) -> &PhysicsDetails;
 
         fn calculate_force_applied_to_object(&self, details: &PhysicsDetails) -> Vector2<f64> {
-            let dist2 = details.pos.dot(&self.physics_details().pos);
+            let delta_pos = details.pos - &self.physics_details().pos;
+            let dist2 = delta_pos.dot(&delta_pos);
             let force_magnitude =
                 self.grav_const() * details.mass * self.physics_details().mass / dist2;
-            let force_direction = details.pos - self.physics_details().pos;
+            let force_direction = -delta_pos;
             return force_direction.normalize() * force_magnitude;
         }
     }
@@ -53,6 +56,7 @@ pub mod utils {
 
 pub mod objects {
     use crate::physics;
+    use crate::physics::ForceSource;
     use crate::utils;
     use nalgebra::Vector2;
 
@@ -92,12 +96,27 @@ pub mod objects {
             return &self.phys;
         }
     }
+
+    pub struct Simulator {
+        pub sun: CelestialObject,
+        pub ship: Ship,
+    }
+    impl Simulator {
+        /// the interval is in seconds, or whatever the denominator unit of velocity is
+        pub fn update(&mut self, interval: f64) {
+            let force = self.sun.calculate_force_applied_to_object(&self.ship.phys);
+            let vel_change = force / self.ship.phys.mass * interval;
+            self.ship.phys.velocity += (vel_change * 0.5);
+            self.ship.phys.pos += self.ship.phys.velocity * interval;
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::objects::CelestialObject;
+    use crate::objects::{CelestialObject, Ship, Simulator};
     use crate::physics::PhysicsDetails;
+    use nalgebra::Vector2;
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);
@@ -106,8 +125,23 @@ mod tests {
     #[test]
     fn planet_gravity() {
         let planet = CelestialObject {
-            phys: PhysicsDetails::new(3.0),
+            phys: PhysicsDetails::new(1000000.0), // planet weighs 1mil kilos
             radius: 20.0,
+        };
+
+        let ship = Ship {
+            phys: PhysicsDetails {
+                pos: Vector2::new(0.0, 10.0),
+                mass: 30.0,
+                velocity: Vector2::new(-5.0, 0.0)
+            }, // ship weighs 30 kilos
+            current_accel: 0.0,
+            max_accel: 3.0,
+        };
+
+        let simulator = Simulator {
+            sun: planet,
+            ship: ship
         };
     }
 }
