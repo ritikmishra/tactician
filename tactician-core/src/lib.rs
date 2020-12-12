@@ -3,7 +3,7 @@ pub use nalgebra;
 pub mod physics {
     use nalgebra::Vector2;
     // TODO: adjust gravitational constant to acheive desired behavior
-    const G: f64 = 0.00000000006;
+    pub const G: f64 = 0.0000000006;
 
     pub struct PhysicsDetails {
         pub pos: Vector2<f64>,
@@ -22,29 +22,6 @@ pub mod physics {
 
     pub trait ForceSource {
         fn calculate_force_applied_to_object(&self, details: &PhysicsDetails) -> Vector2<f64>;
-    }
-
-    pub trait GravitationalForceSource: ForceSource {
-        fn grav_const(&self) -> f64 {
-            return G;
-        }
-
-        fn physics_details(&self) -> &PhysicsDetails;
-
-        fn calculate_force_applied_to_object(&self, details: &PhysicsDetails) -> Vector2<f64> {
-            let delta_pos = details.pos - &self.physics_details().pos;
-            let dist2 = delta_pos.dot(&delta_pos);
-            let force_magnitude =
-                self.grav_const() * details.mass * self.physics_details().mass / dist2;
-            let force_direction = -delta_pos;
-            return force_direction.normalize() * force_magnitude;
-        }
-    }
-
-    impl<T: GravitationalForceSource> ForceSource for T {
-        fn calculate_force_applied_to_object(&self, details: &PhysicsDetails) -> Vector2<f64> {
-            return GravitationalForceSource::calculate_force_applied_to_object(self, details);
-        }
     }
 }
 
@@ -91,23 +68,71 @@ pub mod objects {
         pub radius: f64,
     }
 
-    impl physics::GravitationalForceSource for CelestialObject {
-        fn physics_details(&self) -> &physics::PhysicsDetails {
-            return &self.phys;
+    impl physics::ForceSource for CelestialObject {
+        fn calculate_force_applied_to_object(
+            &self,
+            details: &physics::PhysicsDetails,
+        ) -> Vector2<f64> {
+            let delta_pos = details.pos - &self.phys.pos;
+            let dist2 = delta_pos.dot(&delta_pos);
+            let force_magnitude = physics::G * details.mass * self.phys.mass / dist2;
+            let force_direction = -delta_pos;
+            return force_direction.normalize() * force_magnitude;
         }
     }
 
     pub struct Simulator {
         pub sun: CelestialObject,
-        pub ship: Ship,
+        pub planets: Vec<CelestialObject>,
+        pub ships: Vec<Ship>,
+        // pub missiles: Vec<Missile>,
     }
     impl Simulator {
         /// the interval is in seconds, or whatever the denominator unit of velocity is
         pub fn update(&mut self, interval: f64) {
-            let force = self.sun.calculate_force_applied_to_object(&self.ship.phys);
-            let vel_change = force / self.ship.phys.mass * interval;
-            self.ship.phys.velocity += vel_change * 0.5;
-            self.ship.phys.pos += self.ship.phys.velocity * interval;
+            // Step 1: Update ships based on planets, sun
+            for ship in self.ships.iter_mut() {
+                let mut aggregate_force = self
+                    .planets
+                    .iter()
+                    .map(|planet| planet.calculate_force_applied_to_object(&ship.phys))
+                    .fold(Vector2::new(0.0, 0.0), |acc, force| force + acc);
+                aggregate_force += self.sun.calculate_force_applied_to_object(&ship.phys);
+
+                let vel_change = aggregate_force / ship.phys.mass * interval;
+
+                // To have good numerical integration, we multiply the velocity change in half
+                // to account for the fact that, at the beginning of this time interval, the
+                // velocity change was 0. This assumes that the velocity increased linearly over time
+                // which is a better estimate than assuming that it discontinuously jumps around
+                ship.phys.velocity += vel_change * 0.5;
+                ship.phys.pos += ship.phys.velocity * interval;
+            }
+
+            // Step 2: Update planets based on each other + sun
+            for this_planet_id in 0..self.planets.len() {
+                let this_planet = self.planets.get(this_planet_id).unwrap();
+
+                // sum of force applied by fellow planets + sun
+                let mut aggregate_force = self
+                    .planets
+                    .iter()
+                    .enumerate()
+                    .map(|(i, other_planet)| {
+                        if i != this_planet_id {
+                            return other_planet.calculate_force_applied_to_object(&this_planet.phys);
+                        } 
+                        return Vector2::new(0.0, 0.0);
+                    })
+                    .fold(Vector2::new(0.0, 0.0), |acc, force| force + acc);
+                aggregate_force += self.sun.calculate_force_applied_to_object(&this_planet.phys);
+
+
+                let vel_change = aggregate_force / this_planet.phys.mass * interval;
+                let this_planet = self.planets.get_mut(this_planet_id).unwrap();
+                this_planet.phys.velocity += vel_change * 0.5;
+                this_planet.phys.pos += this_planet.phys.velocity * interval;
+            }
         }
     }
 }
@@ -124,8 +149,8 @@ mod tests {
 
     #[test]
     fn planet_gravity() {
-        let planet = CelestialObject {
-            phys: PhysicsDetails::new(1000000.0), // planet weighs 1mil kilos
+        let sun = CelestialObject {
+            phys: PhysicsDetails::new(1000000.0), // sun weighs 1mil kilos
             radius: 20.0,
         };
 
@@ -133,15 +158,16 @@ mod tests {
             phys: PhysicsDetails {
                 pos: Vector2::new(0.0, 10.0),
                 mass: 30.0,
-                velocity: Vector2::new(-5.0, 0.0)
+                velocity: Vector2::new(-5.0, 0.0),
             }, // ship weighs 30 kilos
             current_accel: 0.0,
             max_accel: 3.0,
         };
 
         let simulator = Simulator {
-            sun: planet,
-            ship: ship
+            sun: sun,
+            planets: vec![],
+            ships: vec![ship],
         };
     }
 }
