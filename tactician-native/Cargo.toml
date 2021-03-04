@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 tactician-core = { path = "../tactician-core" }
-druid = { git = "https://github.com/linebender/druid.git" }
+druid = "0.7.0"
