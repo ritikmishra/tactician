@@ -18,6 +18,7 @@ fn main() {
         .add_system(enforce_size.system())
         .add_system(move_objects.system())
         .add_system(apply_gravity_from_planets_to_ships.system())
+        .add_system(apply_gravity_among_planets.system())
         .add_system(sprite_motion_system.system())
         .add_system(hello_world.system())
         .run();
@@ -25,8 +26,12 @@ fn main() {
 
 struct FPSCount;
 
+#[derive(Debug)]
 struct Position(Vec2);
+#[derive(Debug)]
 struct Mass(f32);
+
+#[derive(Debug)]
 struct Velocity(Vec2);
 
 /// Component for entities that can move themselves
@@ -95,8 +100,6 @@ fn initialize_components(
             ..Default::default()
         });
 
-    // TODO: add sprite
-
     commands
         .spawn((
             Planet,
@@ -109,7 +112,7 @@ fn initialize_components(
         .with_bundle(SpriteBundle {
             material: planet_material,
             ..Default::default()
-        }); // TODO: add sprite
+        });
 
     commands
         .spawn((
@@ -165,7 +168,7 @@ fn sprite_motion_system(mut physics_sprite: Query<(&mut Transform, &Position)>) 
 
 fn apply_gravity_from_planets_to_ships(
     planets: Query<(&Position, &Mass), With<GravitySource>>,
-    mut ships: Query<(&mut Position, &mut Velocity), Without<GravitySource>>,
+    mut ships: Query<(&Position, &mut Velocity), Without<GravitySource>>,
     time: Res<Time>
 ) {
     for (ship_pos, mut ship_vel) in ships.iter_mut() {
@@ -188,6 +191,8 @@ fn apply_gravity_from_planets_to_ships(
     }
 }
 
+/// For all objects that have a position and a velocity, it moves the object 
+/// according to the velocity and the time elapsed
 fn move_objects(mut objects: Query<(&mut Position, &Velocity)>, dt: Res<Time>) {
     for (mut pos, Velocity(vel)) in objects.iter_mut() {
         let pos_delta = dt.delta_seconds() * (*vel);
@@ -195,54 +200,37 @@ fn move_objects(mut objects: Query<(&mut Position, &Velocity)>, dt: Res<Time>) {
     }
 }
 
-fn apply_gravity_to_missiles_and_ships(
-    mut q: QuerySet<(
-        Query<&Mass, With<GravitySource>>,
-        Query<(&mut Position, &mut Mass, &mut Velocity)>,
-    )>,
+fn apply_gravity_among_planets(
+    stars: Query<(Entity, &Position, &Mass), With<Star>>,
+    mut planets: Query<(Entity, &Position, &Mass, &mut Velocity), With<Planet>>,
+    time: Res<Time>
 ) {
-    let x = q.q0_mut().iter_mut();
-    // // Step 1: Update ships based on planets, sun
-    // for ship in self.ships.iter_mut() {
-    //     let mut aggregate_force = self
-    //         .planets
-    //         .iter()
-    //         .map(|planet| planet.calculate_force_applied_to_object(&ship.phys))
-    //         .fold(Vector2::new(0.0, 0.0), |acc, force| force + acc);
-    //     aggregate_force += self.sun.calculate_force_applied_to_object(&ship.phys);
+    // FIXME: uses aliased mutability :/
+    unsafe {
+        for mut planet in planets.iter_unsafe() {
+            let mut new_accel = Vec2::zero();
+            for gravity_source in planets.iter_unsafe().map(|(a, b, c, _)| (a, b, c)).chain(stars.iter()) {
+                if planet.0 != gravity_source.0 {
+                    let planet_position = (*planet.1).0;
+                    let gravity_source_pos = (*gravity_source.1).0;
 
-    //     let vel_change = aggregate_force / ship.phys.mass * interval;
+                    // TODO: this code is wet - same as the ship gravity impl, maybe we can combine the systems?
+                    // points from the planet to the gravity source
+                    let pos_delta: Vec2 = gravity_source_pos - planet_position;
+                    let dist2 = pos_delta.length_squared();
+    
+                    let accel_direction = pos_delta.normalize();
+    
+                    // don't multiply by ship mass - we want acceleration on ship (F = ma)
+                    let gravity_source_mass = (*gravity_source.2).0;
+                    let accel_magnitude = G * gravity_source_mass / dist2;
 
-    //     // To have good numerical integration, we multiply the velocity change in half
-    //     // to account for the fact that, at the beginning of this time interval, the
-    //     // velocity change was 0. This assumes that the velocity increased linearly over time
-    //     // which is a better estimate than assuming that it discontinuously jumps around
-    //     ship.phys.velocity += vel_change * 0.5;
-    //     ship.phys.pos += ship.phys.velocity * interval;
-    // }
-
-    // // Step 2: Update planets based on each other + sun
-    // for this_planet_id in 0..self.planets.len() {
-    //     let this_planet = self.planets.get(this_planet_id).unwrap();
-
-    //     // sum of force applied by fellow planets + sun
-    //     let mut aggregate_force = self
-    //         .planets
-    //         .iter()
-    //         .enumerate()
-    //         .map(|(i, other_planet)| {
-    //             if i != this_planet_id {
-    //                 return other_planet.calculate_force_applied_to_object(&this_planet.phys);
-    //             }
-    //             return Vector2::new(0.0, 0.0);
-    //         })
-    //         .fold(Vector2::new(0.0, 0.0), |acc, force| force + acc);
-    //     aggregate_force += self.sun.calculate_force_applied_to_object(&this_planet.phys);
-
-    //     let vel_change = aggregate_force / this_planet.phys.mass * interval;
-    //     let this_planet = self.planets.get_mut(this_planet_id).unwrap();
-    //     this_planet.phys.velocity += vel_change * 0.5;
-    //     this_planet.phys.pos += this_planet.phys.velocity * interval;
+                    new_accel += accel_direction * accel_magnitude;
+                }
+            }
+            planet.3.0 += new_accel * time.delta_seconds();
+        }
+    }
 }
 
 fn enforce_size(mut size_sprite: Query<(&mut Transform, &Size)>) {
