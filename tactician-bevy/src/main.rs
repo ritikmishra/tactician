@@ -4,14 +4,20 @@ use bevy::{
     diagnostic::{DiagnosticId, Diagnostics},
     prelude::*,
 };
+use std::ops::Add;
+
+/// Gravitational constant -- should probably be adjustable or something
+pub const G: f32 = 0.0000000006;
 
 fn main() {
     App::build()
         .add_plugins(DefaultPlugins)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_resource(ClearColor(Color::rgb(0.9, 0.9, 0.9)))
+        .add_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_startup_system(initialize_components.system())
         .add_system(enforce_size.system())
+        .add_system(move_objects.system())
+        .add_system(apply_gravity_from_planets_to_ships.system())
         .add_system(sprite_motion_system.system())
         .add_system(hello_world.system())
         .run();
@@ -39,6 +45,8 @@ struct Missile;
 struct Star;
 struct Planet;
 
+struct GravitySource;
+
 const FONT: &str = "fonts/FiraMono-Medium.ttf";
 
 fn initialize_components(
@@ -61,7 +69,13 @@ fn initialize_components(
     let ship_material = materials.add(ship_handle.into());
 
     commands
-        .spawn((Star, Position(Vec2::new(0., 0.)), Mass(1e15), Size(1.0)))
+        .spawn((
+            Star,
+            GravitySource,
+            Position(Vec2::new(0., 0.)),
+            Mass(1e15),
+            Size(1.0),
+        ))
         .with_bundle(SpriteBundle {
             material: planet_material.clone(),
             ..Default::default()
@@ -70,6 +84,7 @@ fn initialize_components(
     commands
         .spawn((
             Planet,
+            GravitySource,
             Position(Vec2::new(0.0, 250.0)),
             Mass(1e14),
             Velocity(Vec2::new(-40.0, 0.0)),
@@ -85,6 +100,7 @@ fn initialize_components(
     commands
         .spawn((
             Planet,
+            GravitySource,
             Position(Vec2::new(-80.0, 320.0)),
             Mass(1e5),
             Velocity(Vec2::new(-20.0, -1.0)),
@@ -123,7 +139,7 @@ fn initialize_components(
             font: asset_server.load(FONT),
             style: TextStyle {
                 font_size: 20.0,
-                color: Color::BLACK,
+                color: Color::WHITE,
                 ..Default::default()
             },
         },
@@ -141,11 +157,92 @@ fn hello_world(time: Res<Diagnostics>, mut texts: Query<&mut Text, With<FPSCount
     }
 }
 
-
 fn sprite_motion_system(mut physics_sprite: Query<(&mut Transform, &Position)>) {
     for (mut sprite_pos, physics_pos) in physics_sprite.iter_mut() {
         sprite_pos.translation = (physics_pos.0, 0.).into();
     }
+}
+
+fn apply_gravity_from_planets_to_ships(
+    planets: Query<(&Position, &Mass), With<GravitySource>>,
+    mut ships: Query<(&mut Position, &mut Velocity), Without<GravitySource>>,
+    time: Res<Time>
+) {
+    for (ship_pos, mut ship_vel) in ships.iter_mut() {
+        let aggregate_grav_accel = planets
+            .iter()
+            .map(|(Position(p_pos), Mass(p_mass))| {
+                // points from ship to planet
+                let pos_delta: Vec2 = *p_pos - ship_pos.0;
+                let dist2 = pos_delta.length_squared();
+
+                let accel_direction = pos_delta.normalize();
+
+                // don't multiply by ship mass - we want acceleration on ship (F = ma)
+                let accel_magnitude = G * p_mass / dist2;
+                return accel_direction * accel_magnitude;
+            })
+            .fold(Vec2::zero(), Vec2::add);
+
+        ship_vel.0 += aggregate_grav_accel * time.delta_seconds();
+    }
+}
+
+fn move_objects(mut objects: Query<(&mut Position, &Velocity)>, dt: Res<Time>) {
+    for (mut pos, Velocity(vel)) in objects.iter_mut() {
+        let pos_delta = dt.delta_seconds() * (*vel);
+        pos.0 += pos_delta;
+    }
+}
+
+fn apply_gravity_to_missiles_and_ships(
+    mut q: QuerySet<(
+        Query<&Mass, With<GravitySource>>,
+        Query<(&mut Position, &mut Mass, &mut Velocity)>,
+    )>,
+) {
+    let x = q.q0_mut().iter_mut();
+    // // Step 1: Update ships based on planets, sun
+    // for ship in self.ships.iter_mut() {
+    //     let mut aggregate_force = self
+    //         .planets
+    //         .iter()
+    //         .map(|planet| planet.calculate_force_applied_to_object(&ship.phys))
+    //         .fold(Vector2::new(0.0, 0.0), |acc, force| force + acc);
+    //     aggregate_force += self.sun.calculate_force_applied_to_object(&ship.phys);
+
+    //     let vel_change = aggregate_force / ship.phys.mass * interval;
+
+    //     // To have good numerical integration, we multiply the velocity change in half
+    //     // to account for the fact that, at the beginning of this time interval, the
+    //     // velocity change was 0. This assumes that the velocity increased linearly over time
+    //     // which is a better estimate than assuming that it discontinuously jumps around
+    //     ship.phys.velocity += vel_change * 0.5;
+    //     ship.phys.pos += ship.phys.velocity * interval;
+    // }
+
+    // // Step 2: Update planets based on each other + sun
+    // for this_planet_id in 0..self.planets.len() {
+    //     let this_planet = self.planets.get(this_planet_id).unwrap();
+
+    //     // sum of force applied by fellow planets + sun
+    //     let mut aggregate_force = self
+    //         .planets
+    //         .iter()
+    //         .enumerate()
+    //         .map(|(i, other_planet)| {
+    //             if i != this_planet_id {
+    //                 return other_planet.calculate_force_applied_to_object(&this_planet.phys);
+    //             }
+    //             return Vector2::new(0.0, 0.0);
+    //         })
+    //         .fold(Vector2::new(0.0, 0.0), |acc, force| force + acc);
+    //     aggregate_force += self.sun.calculate_force_applied_to_object(&this_planet.phys);
+
+    //     let vel_change = aggregate_force / this_planet.phys.mass * interval;
+    //     let this_planet = self.planets.get_mut(this_planet_id).unwrap();
+    //     this_planet.phys.velocity += vel_change * 0.5;
+    //     this_planet.phys.pos += this_planet.phys.velocity * interval;
 }
 
 fn enforce_size(mut size_sprite: Query<(&mut Transform, &Size)>) {
