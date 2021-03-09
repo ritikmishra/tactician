@@ -1,6 +1,6 @@
-use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::math::Vec2;
-use bevy::{diagnostic::Diagnostics, prelude::*};
+use bevy::{diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin}, prelude::*};
+use bevy_prototype_lyon::{prelude::*, utils::Convert};
 use bundles::*;
 use components::Size;
 use components::*;
@@ -15,6 +15,7 @@ pub const G: f32 = 0.0000000006;
 fn main() {
     App::build()
         .add_plugins(DefaultPlugins)
+        .add_plugin(ShapePlugin)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_startup_system(initialize_components.system())
@@ -22,8 +23,9 @@ fn main() {
         .add_system(move_objects.system())
         .add_system(apply_gravity_from_planets_to_ships.system())
         .add_system(apply_gravity_among_planets.system())
+        .add_system(render_snailtrail.system())
         .add_system(sprite_motion_system.system())
-        .add_system(hello_world.system())
+        .add_system(fps_counter.system())
         .run();
 }
 
@@ -35,6 +37,8 @@ fn initialize_components(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // create the ui
+    // camera2dbundle is needed for the 2d rendering
+    // camerauibundle is needed for text/UI element rendering
     commands
         .spawn(Camera2dBundle::default())
         .spawn(CameraUiBundle::default());
@@ -120,7 +124,37 @@ fn initialize_components(
     });
 }
 
-fn hello_world(time: Res<Diagnostics>, mut texts: Query<&mut Text, With<FPSCount>>) {
+fn render_snailtrail(
+    commands: &mut Commands,
+    mut objects_with_snail_trail: Query<(&Position, &mut SnailTrail)>,
+    snail_trails: Query<Entity, With<SnailTrailEntityMarker>>,
+    mut materials: ResMut<Assets<ColorMaterial>>
+) {
+    // despawn the old snail trails
+    for old_snail_trail in snail_trails.iter() {
+        commands.despawn(old_snail_trail);
+    }
+
+    // update the snail trail (point vec) for the objects
+    // and render the snail trail
+    // TODO: only collect the position maybe 15 times a second? does not need to run every framemaybe only collect 
+    for (pos, mut trail) in objects_with_snail_trail.iter_mut() {
+        trail.0.push(pos.0.convert());
+
+        // TODO: remove magic number
+        if trail.0.len() > 5000 {
+            trail.0.remove(0);
+        }
+        commands.spawn(GeometryBuilder::build_as(
+            &*trail,
+            materials.add(ColorMaterial::color(Color::WHITE)),
+            TessellationMode::Stroke(StrokeOptions::default()),
+            Transform::default(),
+        )).with(SnailTrailEntityMarker);
+    }
+}
+
+fn fps_counter(time: Res<Diagnostics>, mut texts: Query<&mut Text, With<FPSCount>>) {
     if let Some(fps_stats) = time.get(FrameTimeDiagnosticsPlugin::FPS) {
         if let Some(fps_num) = fps_stats.average() {
             for mut text in texts.iter_mut() {

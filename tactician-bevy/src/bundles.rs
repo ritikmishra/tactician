@@ -1,5 +1,10 @@
 use crate::components::*;
 use bevy::prelude::Bundle;
+use bevy_prototype_lyon::prelude::Geometry;
+use lyon::{
+    geom::euclid::default::Point2D,
+    path::{path::Builder, traits::PathBuilder, Polygon},
+};
 
 #[derive(Bundle, Default)]
 pub struct StarBundle {
@@ -20,6 +25,7 @@ pub struct PlanetBundle {
 
     pub planet: Planet,
     pub gravity_source: GravitySource,
+    pub snail_trail: SnailTrail,
 }
 
 #[derive(Bundle, Default)]
@@ -32,4 +38,21 @@ pub struct ShipBundle {
     pub engine: EnginePhysics,
 
     pub ship: Ship,
+    pub snail_trail: SnailTrail,
 }
+
+#[derive(Debug, Default)]
+pub struct SnailTrail(pub Vec<Point2D<f32>>);
+
+impl Geometry for SnailTrail {
+    fn add_geometry(&self, b: &mut Builder) {
+        b.add_polygon(Polygon {
+            points: self.0.as_slice(),
+            closed: false,
+        })
+    }
+}
+
+/// The snail trail component is separate from the actual ship/planet/missile
+/// The entire trail is despawned and redrawn
+pub struct SnailTrailEntityMarker;
