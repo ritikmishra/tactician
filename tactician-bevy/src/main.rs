@@ -1,5 +1,8 @@
-use bevy::math::Vec2;
-use bevy::{diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin}, prelude::*};
+use bevy::{
+    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
+    prelude::*,
+};
+use bevy::{input::keyboard, math::Vec2};
 use bevy_prototype_lyon::{prelude::*, utils::Convert};
 use bundles::*;
 use components::Size;
@@ -21,6 +24,7 @@ fn main() {
         .add_startup_system(initialize_components.system())
         .add_system(enforce_size.system())
         .add_system(render_snailtrail.system())
+        .add_system(connect_ship_acceleration_to_user_input.system())
         .add_system(fps_counter.system())
         .run();
 }
@@ -124,7 +128,7 @@ fn render_snailtrail(
     commands: &mut Commands,
     mut objects_with_snail_trail: Query<(&Position, &mut SnailTrail)>,
     snail_trails: Query<Entity, With<SnailTrailEntityMarker>>,
-    mut materials: ResMut<Assets<ColorMaterial>>
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // despawn the old snail trails
     for old_snail_trail in snail_trails.iter() {
@@ -133,7 +137,7 @@ fn render_snailtrail(
 
     // update the snail trail (point vec) for the objects
     // and render the snail trail
-    // TODO: only collect the position maybe 15 times a second? does not need to run every framemaybe only collect 
+    // TODO: only collect the position maybe 15 times a second? does not need to run every framemaybe only collect
     for (pos, mut trail) in objects_with_snail_trail.iter_mut() {
         trail.0.push(pos.0.convert());
 
@@ -141,12 +145,14 @@ fn render_snailtrail(
         if trail.0.len() > 7000 {
             trail.0.remove(0);
         }
-        commands.spawn(GeometryBuilder::build_as(
-            &*trail,
-            materials.add(ColorMaterial::color(Color::WHITE)),
-            TessellationMode::Stroke(StrokeOptions::default()),
-            Transform::default(),
-        )).with(SnailTrailEntityMarker);
+        commands
+            .spawn(GeometryBuilder::build_as(
+                &*trail,
+                materials.add(ColorMaterial::color(Color::WHITE)),
+                TessellationMode::Stroke(StrokeOptions::default()),
+                Transform::default(),
+            ))
+            .with(SnailTrailEntityMarker);
     }
 }
 
@@ -163,5 +169,20 @@ fn fps_counter(time: Res<Diagnostics>, mut texts: Query<&mut Text, With<FPSCount
 fn enforce_size(mut size_sprite: Query<(&mut Transform, &Size)>) {
     for (mut sprite_pos, Size(size)) in size_sprite.iter_mut() {
         sprite_pos.scale = Vec3::splat(*size);
+    }
+}
+
+fn connect_ship_acceleration_to_user_input(
+    mut query: Query<&mut EnginePhysics>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    if let Some(mut val) = query.iter_mut().next() {
+        if keyboard_input.pressed(KeyCode::Up) {
+            val.current_accel = 1.;
+        } else if keyboard_input.pressed(KeyCode::Down) {
+            val.current_accel = -1.;
+        } else {
+            val.current_accel = 0.;
+        }
     }
 }

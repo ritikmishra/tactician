@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use std::ops::Add;
 
-use crate::components::{GravitySource, Mass, Planet, Position, Star, Velocity};
+use crate::components::{EnginePhysics, GravitySource, Mass, Planet, Position, Ship, Star, Velocity};
 
 /// Gravitational constant -- should probably be adjustable or something
 pub const G: f32 = 0.0000000006;
@@ -14,7 +14,10 @@ impl Plugin for PhysicsPlugin {
         app.add_system(apply_gravity_from_planets_to_ships.system())
         .add_system(apply_gravity_among_planets.system())
         .add_system(move_objects.system())
-        .add_system(move_sprite_to_physics_pos.system());
+        .add_system(apply_engine_acceleration.system())
+        .add_system(move_sprite_to_physics_pos.system())
+        .add_system(rotate_sprite_for_components_with_engine.system())
+        ;
     }
 }
 
@@ -23,6 +26,12 @@ impl Plugin for PhysicsPlugin {
 fn move_sprite_to_physics_pos(mut physics_sprite: Query<(&mut Transform, &Position)>) {
     for (mut sprite_pos, physics_pos) in physics_sprite.iter_mut() {
         sprite_pos.translation = (physics_pos.0, 0.).into();
+    }
+}
+
+fn rotate_sprite_for_components_with_engine(mut engine_sprite: Query<(&mut Transform, &Velocity)>) {
+    for (mut sprite_transform, velocity) in engine_sprite.iter_mut() {
+        sprite_transform.rotation = Quat::from_rotation_z(-velocity.0.angle_between(Vec2::unit_y()));
     }
 }
 
@@ -56,6 +65,13 @@ fn move_objects(mut objects: Query<(&mut Position, &Velocity)>, dt: Res<Time>) {
         let pos_delta = dt.delta_seconds() * (*vel);
         pos.0 += pos_delta;
     }
+}
+
+fn apply_engine_acceleration(mut objects: Query<(&mut Velocity, &EnginePhysics)>, dt: Res<Time>) {
+    for (mut vel, engine) in objects.iter_mut() {
+        let accel_vec = engine.current_accel * vel.0;
+        vel.0 += dt.delta_seconds() * accel_vec;
+    }    
 }
 
 fn apply_gravity_among_planets(
