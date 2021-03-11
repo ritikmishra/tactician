@@ -1,5 +1,5 @@
 use crate::components::*;
-use bevy::prelude::Bundle;
+use bevy::{prelude::{Bundle, Handle}, sprite::ColorMaterial};
 use bevy_prototype_lyon::prelude::Geometry;
 use lyon::{
     geom::euclid::default::Point2D,
@@ -41,6 +41,15 @@ pub struct ShipBundle {
     pub snail_trail: SnailTrail,
 }
 
+#[derive(Debug, Bundle, Default)]
+pub struct MissileBundle {
+    pub snail_trail: SnailTrail,
+    pub position: Position, 
+    pub velocity: Velocity,
+    pub size: Size,
+    pub lifespan: Lifespan
+}
+
 #[derive(Debug, Default)]
 pub struct SnailTrail(pub Vec<Point2D<f32>>);
 
@@ -51,6 +60,12 @@ impl Geometry for SnailTrail {
             closed: false,
         })
     }
+}
+
+pub struct Materials {
+    pub ship_mat_handle: Handle<ColorMaterial>,
+    pub planet_mat_handle: Handle<ColorMaterial>,
+    pub missile_mat_hanlde: Handle<ColorMaterial>,
 }
 
 /// The snail trail component is separate from the actual ship/planet/missile

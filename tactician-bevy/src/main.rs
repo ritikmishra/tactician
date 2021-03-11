@@ -26,6 +26,7 @@ fn main() {
         .add_system(render_snailtrail.system())
         .add_system(connect_ship_acceleration_to_user_input.system())
         .add_system(fps_counter.system())
+        .add_system(kill_expired_objects.system())
         .run();
 }
 
@@ -51,6 +52,12 @@ fn initialize_components(
 
     let ship_handle = asset_server.load("images/ship.png");
     let ship_material = materials.add(ship_handle.into());
+
+    commands.insert_resource(Materials {
+        ship_mat_handle: ship_material.clone(),
+        planet_mat_handle: missile_material.clone(),
+        missile_mat_hanlde: planet_material.clone(),
+    });
 
     commands
         .spawn(StarBundle {
@@ -91,7 +98,7 @@ fn initialize_components(
     commands
         .spawn(ShipBundle {
             position: Position(Vec2::new(-70., 240.)),
-            mass: Mass(30.),
+            mass: Mass(0.0001),
             velocity: Velocity(Vec2::new(-20.0, -20.0)),
             size: Size(0.3),
             engine: EnginePhysics {
@@ -172,9 +179,16 @@ fn enforce_size(mut size_sprite: Query<(&mut Transform, &Size)>) {
     }
 }
 
+
+// FIXME: yucky! this method has to handle missle spawning? gross!
+// it should emit an event!
 fn connect_ship_acceleration_to_user_input(
+    commands: &mut Commands,
     mut query: Query<&mut EnginePhysics>,
+    ship: Query<(&Position, &Velocity), With<Ship>>,
     keyboard_input: Res<Input<KeyCode>>,
+    materials: Res<Materials>,
+    time: Res<Time>
 ) {
     if let Some(mut val) = query.iter_mut().next() {
         if keyboard_input.pressed(KeyCode::Up) {
@@ -184,5 +198,34 @@ fn connect_ship_acceleration_to_user_input(
         } else {
             val.current_accel = 0.;
         }
+
+        if keyboard_input.just_pressed(KeyCode::Space) {
+            if let Some((ship_pos, ship_vel)) = ship.iter().next() {
+                commands
+                    .spawn(MissileBundle {
+                        position: ship_pos.clone(),
+                        velocity: Velocity(ship_vel.0 + (45.0 * ship_vel.0.normalize()) ),
+                        size: Size(0.1),
+                        lifespan: Lifespan {
+                            created_on: time.seconds_since_startup(),
+                            lifespan: 15.0
+                        },
+                        ..Default::default()
+                    })
+                    .with_bundle(SpriteBundle {
+                        material: materials.ship_mat_handle.clone(),
+                        ..Default::default()
+                    });
+            }
+        }
+    }
+}
+
+
+fn kill_expired_objects(commands: &mut Commands, time: Res<Time>, lifespan_objects: Query<(Entity, &Lifespan)>) {
+    for (id, lifespan) in lifespan_objects.iter() {
+        if lifespan.created_on + lifespan.lifespan < time.seconds_since_startup() {
+            commands.despawn(id);
+        }        
     }
 }

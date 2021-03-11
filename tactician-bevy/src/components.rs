@@ -2,10 +2,10 @@ use bevy::{audio::Decodable, math::Vec2};
 
 pub struct FPSCount;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Position(pub Vec2);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Mass(pub f32);
 
 impl std::default::Default for Mass {
@@ -15,7 +15,7 @@ impl std::default::Default for Mass {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Velocity(pub Vec2);
 
 /// Component for entities that can move themselves
@@ -65,3 +65,12 @@ pub struct Planet;
 
 #[derive(Debug, Default)]
 pub struct GravitySource;
+
+#[derive(Debug, Default)]
+pub struct Lifespan {
+    /// Seconds since program startup that this component was created on
+    pub created_on: f64,
+
+    /// Number of seconds for which this item should be alive
+    pub lifespan: f64,
+}
