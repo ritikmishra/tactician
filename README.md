@@ -2,29 +2,7 @@
 
 Orbital battle simulator
 
+uses the [Bevy game engine](https://github.com/bevyengine/bevy) with a [WebGL rendering backend](https://github.com/mrk-its/bevy_webgl2)
 
-## Design
 
-### Structs
-
-PhysicsDetails
- * position
- * velocity
- * forces
-
-Missile
-* PhysicsDetails
-* det radius
-* lifetime
-* when the missile was created
-
-Ship
-* PhysicsDetails
-* deltav
-* method to decide to accelerate/decelerate
-
-### Traits
-
-ForceSource
- * apply force to physicsdetails
-
+[See it in action](https://ritikmishra.github.io/tactician)

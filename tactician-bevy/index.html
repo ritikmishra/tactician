@@ -30,7 +30,13 @@
     </style>
     <script type="module">
       import init from './target/tactician-bevy.js'
-      init().finally(() => document.getElementById("loading").remove())
+      init().finally(() => {
+        document.getElementById("loading").remove();
+        // should happen exactly once
+        for (const canvas of document.getElementsByTagName("canvas")) {
+          canvas.focus();
+        }
+      })
     </script>
   </head>
   <body>
@@ -43,7 +49,7 @@
       </ul>
       <li>Other notes</li>
       <ul>
-        <li>You will probably have to click on the thing when it loads to have it read your keyboard inputs</li>
+        <li>If the canvas is not in focus (i.e you didn't click on it), your keyboard input won't go through</li>
       </ul>
     </ul>
     <img id="loading" src="https://fonts.gstatic.com/s/i/materialicons/sync/v12/24px.svg">
