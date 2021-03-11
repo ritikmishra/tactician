@@ -5,7 +5,7 @@ use std::ops::Add;
 use crate::components::{EnginePhysics, GravitySource, Mass, Planet, Position, Ship, Star, Velocity};
 
 /// Gravitational constant -- should probably be adjustable or something
-pub const G: f32 = 0.0000000006;
+pub const G: f32 = 0.000000001;
 
 pub struct PhysicsPlugin;
 
@@ -24,8 +24,8 @@ impl Plugin for PhysicsPlugin {
 /// Makes the Position used in the physics simulation and the Transform used to render the sprite
 /// refer to the same physical location
 fn move_sprite_to_physics_pos(mut physics_sprite: Query<(&mut Transform, &Position)>) {
-    for (mut sprite_pos, physics_pos) in physics_sprite.iter_mut() {
-        sprite_pos.translation = (physics_pos.0, 0.).into();
+    for (mut sprite_pos, Position(physics_pos)) in physics_sprite.iter_mut() {
+        sprite_pos.translation = (*physics_pos, 1.).into();
     }
 }
 

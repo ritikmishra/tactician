@@ -4,3 +4,10 @@ members = [
     "tactician-native",
     "tactician-bevy"
 ]
+
+[profile.release]
+opt-level = 's'
+
+[profile.dev]
+opt-level = 1
+incremental = true

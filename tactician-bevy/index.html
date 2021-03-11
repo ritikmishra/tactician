@@ -1,0 +1,51 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        background: #202020;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        color: white;
+        font-family: sans-serif;
+      }
+      canvas {
+        background-color: white;
+      }
+      @keyframes rotation {
+        from {transform: rotate(0deg);}
+        to {transform: rotate(-360deg);}
+      }
+      #loading {
+        /* makes it white */
+        filter: brightness(0) invert(1);
+        /* spins it */
+        animation-name: rotation;
+        animation-duration: 1000ms;
+        animation-iteration-count: infinite;
+        animation-timing-function: linear;
+        margin: 100px;
+      }
+    </style>
+    <script type="module">
+      import init from './target/tactician-bevy.js'
+      init().finally(() => document.getElementById("loading").remove())
+    </script>
+  </head>
+  <body>
+    <ul>
+      <li>Keybindings</li>
+      <ul>
+        <li>Up arrow - accelerate</li>
+        <li>Down arrow - decelerate</li>
+        <li>Space - launch missile</li>
+      </ul>
+      <li>Other notes</li>
+      <ul>
+        <li>You will probably have to click on the thing when it loads to have it read your keyboard inputs</li>
+      </ul>
+    </ul>
+    <img id="loading" src="https://fonts.gstatic.com/s/i/materialicons/sync/v12/24px.svg">
+  </body>
+</html>

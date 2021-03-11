@@ -1,7 +1,4 @@
-use bevy::{
-    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
-    prelude::*,
-};
+use bevy::{diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin}, prelude::*, transform};
 use bevy::{input::keyboard, math::Vec2};
 use bevy_prototype_lyon::{prelude::*, utils::Convert};
 use bundles::*;
@@ -14,19 +11,37 @@ mod components;
 mod physics;
 use physics::PhysicsPlugin;
 
+#[cfg(all(not(feature="wasm"), not(feature="native")))]
+compile_error!("You have to build this binary (tactician-bevy) with either the 'wasm' feature or 'native' feature");
+
 fn main() {
-    App::build()
-        .add_plugins(DefaultPlugins)
+
+    let mut app = App::build();
+    app.add_plugins(DefaultPlugins);
+
+    #[cfg(feature="wasm_panic")]
+    {
+        use console_error_panic_hook;
+        console_error_panic_hook::set_once();
+    }
+
+    #[cfg(feature="wasm")]
+    {
+        use bevy_webgl2;
+        app.add_plugin(bevy_webgl2::WebGL2Plugin);
+    }
+
+    app
         .add_plugin(ShapePlugin)
         .add_plugin(PhysicsPlugin)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_startup_system(initialize_components.system())
         .add_system(enforce_size.system())
-        .add_system(render_snailtrail.system())
         .add_system(connect_ship_acceleration_to_user_input.system())
         .add_system(fps_counter.system())
         .add_system(kill_expired_objects.system())
+        .add_system(render_snailtrail.system())
         .run();
 }
 
@@ -55,8 +70,8 @@ fn initialize_components(
 
     commands.insert_resource(Materials {
         ship_mat_handle: ship_material.clone(),
-        planet_mat_handle: missile_material.clone(),
-        missile_mat_hanlde: planet_material.clone(),
+        planet_mat_handle: planet_material.clone(),
+        missile_mat_handle: missile_material.clone(),
     });
 
     commands
@@ -97,9 +112,9 @@ fn initialize_components(
 
     commands
         .spawn(ShipBundle {
-            position: Position(Vec2::new(-70., 240.)),
+            position: Position(Vec2::new(70., 240.)),
             mass: Mass(0.0001),
-            velocity: Velocity(Vec2::new(-20.0, -20.0)),
+            velocity: Velocity(Vec2::new(40.0, -20.0)),
             size: Size(0.3),
             engine: EnginePhysics {
                 current_accel: 0.0,
@@ -205,7 +220,7 @@ fn connect_ship_acceleration_to_user_input(
                     .spawn(MissileBundle {
                         position: ship_pos.clone(),
                         velocity: Velocity(ship_vel.0 + (45.0 * ship_vel.0.normalize()) ),
-                        size: Size(0.1),
+                        size: Size(0.17),
                         lifespan: Lifespan {
                             created_on: time.seconds_since_startup(),
                             lifespan: 15.0
@@ -213,7 +228,12 @@ fn connect_ship_acceleration_to_user_input(
                         ..Default::default()
                     })
                     .with_bundle(SpriteBundle {
-                        material: materials.ship_mat_handle.clone(),
+                        material: materials.missile_mat_handle.clone(),
+                        transform: Transform {
+                            translation: Vec3::new(ship_vel.0.x, ship_vel.0.y, 0.0),
+                            scale: Vec3::zero(),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     });
             }
