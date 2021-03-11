@@ -1,4 +1,4 @@
-use bevy::{audio::Decodable, math::Vec2};
+use bevy::math::Vec2;
 
 pub struct FPSCount;
 
