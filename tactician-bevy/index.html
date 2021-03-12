@@ -29,14 +29,21 @@
       }
     </style>
     <script type="module">
-      import init from './target/tactician-bevy.js'
-      init().finally(() => {
-        document.getElementById("loading").remove();
-        // should happen exactly once
-        for (const canvas of document.getElementsByTagName("canvas")) {
-          canvas.focus();
-        }
-      })
+      import init from './pkg/tactician_bevy.js'
+      init()
+        .then(wasm => {
+          document.getElementById("loading").remove();
+
+          // run_game func call blocks forever
+          setTimeout(() => wasm.run_game());
+          
+          setTimeout(() => {
+            for (const canvas of document.getElementsByTagName("canvas")) {
+              canvas.focus();
+            }
+          }, 300);
+        })
+        .catch(e => console.error("somehow we got exception :/", e))
     </script>
   </head>
   <body>
