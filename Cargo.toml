@@ -1,7 +1,5 @@
 [workspace]
 members = [
-    "tactician-core",
-    "tactician-native",
     "tactician-bevy"
 ]
 
