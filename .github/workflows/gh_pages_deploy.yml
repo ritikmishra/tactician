@@ -32,6 +32,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/tactician-bevy
           wasm-pack build --target web --release -- --features wasm
+          git add -f pkg/
           
       - name: Deploy to GitHub Pages
         if: success()
