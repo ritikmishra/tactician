@@ -21,6 +21,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
       - uses: jetli/wasm-pack-action@v0.3.0
         with:
           # Optional version of wasm-pack to install(eg. 'v0.9.1', 'latest')
@@ -29,7 +30,7 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: Compile to WASM
         run: |
-          cd tactician-bevy
+          cd $GITHUB_WORKSPACE/tactician-bevy
           wasm-pack build --target web --release -- --features wasm
           
       - name: Deploy to GitHub Pages
