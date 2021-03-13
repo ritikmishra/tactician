@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use std::ops::Add;
 
-use crate::components::{EnginePhysics, GravitySource, Mass, Planet, Position, Ship, Star, Velocity};
+use crate::components::{EnginePhysics, GravitySource, Mass, Planet, Position, Star, Velocity};
 
 /// Gravitational constant -- should probably be adjustable or something
 pub const G: f32 = 0.000000001;
@@ -12,12 +12,11 @@ pub struct PhysicsPlugin;
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut bevy::prelude::AppBuilder) {
         app.add_system(apply_gravity_from_planets_to_ships.system())
-        .add_system(apply_gravity_among_planets.system())
-        .add_system(move_objects.system())
-        .add_system(apply_engine_acceleration.system())
-        .add_system(move_sprite_to_physics_pos.system())
-        .add_system(rotate_sprite_for_components_with_engine.system())
-        ;
+            .add_system(apply_gravity_among_planets.system())
+            .add_system(move_objects.system())
+            .add_system(apply_engine_acceleration.system())
+            .add_system(move_sprite_to_physics_pos.system())
+            .add_system(rotate_sprite_for_components_with_engine.system());
     }
 }
 
@@ -31,7 +30,8 @@ fn move_sprite_to_physics_pos(mut physics_sprite: Query<(&mut Transform, &Positi
 
 fn rotate_sprite_for_components_with_engine(mut engine_sprite: Query<(&mut Transform, &Velocity)>) {
     for (mut sprite_transform, velocity) in engine_sprite.iter_mut() {
-        sprite_transform.rotation = Quat::from_rotation_z(-velocity.0.angle_between(Vec2::unit_y()));
+        sprite_transform.rotation =
+            Quat::from_rotation_z(-velocity.0.angle_between(Vec2::unit_y()));
     }
 }
 
@@ -71,12 +71,12 @@ fn apply_engine_acceleration(mut objects: Query<(&mut Velocity, &EnginePhysics)>
     for (mut vel, engine) in objects.iter_mut() {
         let accel_vec = engine.current_accel * vel.0;
         vel.0 += dt.delta_seconds() * accel_vec;
-    }    
+    }
 }
 
 fn apply_gravity_among_planets(
     stars: Query<(Entity, &Position, &Mass), With<Star>>,
-    mut planets: Query<(Entity, &Position, &Mass, &mut Velocity), With<Planet>>,
+    planets: Query<(Entity, &Position, &Mass, &mut Velocity), With<Planet>>,
     time: Res<Time>,
 ) {
     // FIXME: uses aliased mutability :/
@@ -110,5 +110,3 @@ fn apply_gravity_among_planets(
         }
     }
 }
-
-

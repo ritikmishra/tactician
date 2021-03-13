@@ -1,5 +1,8 @@
 use crate::components::*;
-use bevy::{prelude::{Bundle, Handle}, sprite::ColorMaterial};
+use bevy::{
+    prelude::{Bundle, Handle},
+    sprite::ColorMaterial,
+};
 use bevy_prototype_lyon::prelude::Geometry;
 use lyon::{
     geom::euclid::default::Point2D,
@@ -44,19 +47,32 @@ pub struct ShipBundle {
 #[derive(Debug, Bundle, Default)]
 pub struct MissileBundle {
     pub snail_trail: SnailTrail,
-    pub position: Position, 
+    pub position: Position,
     pub velocity: Velocity,
     pub size: Size,
-    pub lifespan: Lifespan
+    pub lifespan: Lifespan,
+    pub missile: Missile,
 }
 
-#[derive(Debug, Default)]
-pub struct SnailTrail(pub Vec<Point2D<f32>>);
+#[derive(Debug)]
+pub struct SnailTrail {
+    pub points: Vec<Point2D<f32>>,
+    pub max_points: usize
+}
+
+impl Default for SnailTrail {
+    fn default() -> Self {
+        Self {
+            points: Vec::with_capacity(500),
+            max_points: 7000
+        }
+    }
+}
 
 impl Geometry for SnailTrail {
     fn add_geometry(&self, b: &mut Builder) {
         b.add_polygon(Polygon {
-            points: self.0.as_slice(),
+            points: self.points.as_slice(),
             closed: false,
         })
     }

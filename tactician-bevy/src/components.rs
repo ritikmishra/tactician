@@ -2,6 +2,8 @@ use bevy::math::Vec2;
 
 pub struct FPSCount;
 
+pub struct MissileCount;
+
 #[derive(Debug, Default, Clone)]
 pub struct Position(pub Vec2);
 

@@ -5,6 +5,7 @@ members = [
 
 [profile.release]
 opt-level = 's'
+lto = true
 
 [profile.dev]
 opt-level = 1
