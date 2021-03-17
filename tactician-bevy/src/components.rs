@@ -68,6 +68,15 @@ pub struct Planet;
 #[derive(Debug, Default)]
 pub struct GravitySource;
 
+#[derive(Debug, Clone)]
+pub struct Team(pub String);
+
+impl Default for Team {
+    fn default() -> Self {
+        Self("unknown team".to_string())
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Lifespan {
     /// Seconds since program startup that this component was created on

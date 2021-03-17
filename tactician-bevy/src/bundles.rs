@@ -41,6 +41,7 @@ pub struct ShipBundle {
     pub engine: EnginePhysics,
 
     pub ship: Ship,
+    pub team: Team,
     pub snail_trail: SnailTrail,
 }
 
@@ -52,6 +53,7 @@ pub struct MissileBundle {
     pub size: Size,
     pub lifespan: Lifespan,
     pub missile: Missile,
+    pub team: Team
 }
 
 #[derive(Debug)]
