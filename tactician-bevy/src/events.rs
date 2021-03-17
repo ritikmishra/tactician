@@ -5,3 +5,9 @@ pub struct SpawnMissileFromShip {
     pub velocity: Velocity,
     pub team: Team,
 }
+
+pub struct CreateExplosionEvent {
+    pub position: Position,
+    pub velocity: Velocity
+}
+

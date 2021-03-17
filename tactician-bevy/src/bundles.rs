@@ -56,6 +56,15 @@ pub struct MissileBundle {
     pub team: Team
 }
 
+#[derive(Debug, Bundle, Default)]
+pub struct ExplosionBundle {
+    pub explosion: Explosion,
+    pub lifespan: Lifespan,
+    pub position: Position,
+    pub velocity: Velocity,
+    pub size: Size
+}
+
 #[derive(Debug)]
 pub struct SnailTrail {
     pub points: Vec<Point2D<f32>>,

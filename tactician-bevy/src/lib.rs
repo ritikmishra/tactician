@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use bevy::math::Vec2;
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
@@ -14,8 +16,8 @@ use events::*;
 use wasm_bindgen::prelude::*;
 
 mod bundles;
-mod events;
 mod components;
+mod events;
 mod physics;
 use physics::PhysicsPlugin;
 
@@ -44,6 +46,7 @@ pub fn run_game() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_event::<SpawnMissileFromShip>()
+        .add_event::<CreateExplosionEvent>()
         .add_startup_system(initialize_components.system())
         .add_system(handle_window_zoom.system())
         .add_system(enforce_size.system())
@@ -55,6 +58,8 @@ pub fn run_game() {
         .add_system(update_missilecount.system())
         .add_system(follow_ship.system())
         .add_system(render_snailtrail.system())
+        .add_system(check_if_missile_should_kill_ship.system())
+        .add_system(create_explosion.system())
         .run();
 }
 
@@ -120,7 +125,7 @@ fn initialize_components(
 
         commands
             .spawn(PlanetBundle {
-                position: Position(planet_pos + Vec2::new(45., 45.,)),
+                position: Position(planet_pos + Vec2::new(45., 45.)),
                 mass: Mass(1e9),
                 velocity: Velocity(Vec2::new(-20.0, -1.0)),
                 size: Size(0.5),
@@ -145,6 +150,25 @@ fn initialize_components(
             ..Default::default()
         })
         .with_bundle(SpriteBundle {
+            material: ship_material.clone(),
+            ..Default::default()
+        });
+
+    commands
+        .spawn(ShipBundle {
+            position: Position(Vec2::new(300., 0.)),
+            mass: Mass(0.0001),
+            velocity: Velocity(Vec2::new(0.0, -40.0)),
+            size: Size(0.3),
+            engine: EnginePhysics {
+                current_accel: 0.0,
+                max_accel: 3.0,
+            },
+            team: Team(NonZeroU32::new(3)),
+            ..Default::default()
+        })
+        .with_bundle(SpriteBundle {
+            // FIXME: enemy ships should use a different sprite/color
             material: ship_material,
             ..Default::default()
         });
@@ -265,7 +289,7 @@ fn connect_ship_acceleration_to_user_input(
                 spawn_missile_event.send(SpawnMissileFromShip {
                     position: ship_pos.clone(),
                     velocity: Velocity(ship_vel.0 + (45.0 * ship_vel.0.normalize())),
-                    team: ship_team.clone()
+                    team: ship_team.clone(),
                 });
             }
         }
@@ -321,6 +345,58 @@ fn kill_expired_objects(
         if lifespan.created_on + lifespan.lifespan < time.seconds_since_startup() {
             commands.despawn(id);
         }
+    }
+}
+
+fn check_if_missile_should_kill_ship(
+    commands: &mut Commands,
+    ships: Query<(Entity, &Position, &Velocity, &Team), With<Ship>>,
+    missiles: Query<(Entity, &Position, &Velocity, &Team), With<Missile>>,
+    mut explosion_event: ResMut<Events<CreateExplosionEvent>>,
+) {
+    const EXPLOSION_RADIUS: f32 = 5.0;
+
+    for (ship_id, Position(ship_pos), Velocity(ship_vel), Team(ship_team_id)) in ships.iter() {
+        for (missile_id, Position(missile_pos), Velocity(missile_vel), Team(missile_team_id)) in
+            missiles.iter()
+        {
+            if ship_team_id != missile_team_id {
+                if (*ship_pos - *missile_pos).length_squared() < EXPLOSION_RADIUS * EXPLOSION_RADIUS
+                {
+                    commands.despawn(ship_id);
+                    commands.despawn(missile_id);
+                    explosion_event.send(CreateExplosionEvent {
+                        position: Position(*ship_pos),
+                        velocity: Velocity(*ship_vel + *missile_vel),
+                    });
+                }
+            }
+        }
+    }
+}
+
+fn create_explosion(
+    commands: &mut Commands,
+    explosion_events: Res<Events<CreateExplosionEvent>>,
+    mut event_reader: Local<EventReader<CreateExplosionEvent>>,
+    time: Res<Time>,
+) {
+    for ev in event_reader.iter(&explosion_events) {
+        commands
+            .spawn(ExplosionBundle {
+                position: ev.position.clone(),
+                velocity: ev.velocity.clone(),
+                lifespan: Lifespan {
+                    created_on: time.seconds_since_startup(),
+                    lifespan: 3.0,
+                },
+                ..Default::default()
+            })
+            .with_bundle(SpriteBundle {
+                // FIXME: fix the ugly sprite for explosions
+                sprite: Sprite::new(Vec2::splat(100.)),
+                ..Default::default()
+            });
     }
 }
 

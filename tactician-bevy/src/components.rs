@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use bevy::math::Vec2;
 
 pub struct FPSCount;
@@ -60,6 +62,9 @@ pub struct Ship;
 pub struct Missile;
 
 #[derive(Debug, Default)]
+pub struct Explosion;
+
+#[derive(Debug, Default)]
 pub struct Star;
 
 #[derive(Debug, Default)]
@@ -68,14 +73,8 @@ pub struct Planet;
 #[derive(Debug, Default)]
 pub struct GravitySource;
 
-#[derive(Debug, Clone)]
-pub struct Team(pub String);
-
-impl Default for Team {
-    fn default() -> Self {
-        Self("unknown team".to_string())
-    }
-}
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Team(pub Option<NonZeroU32>);
 
 #[derive(Debug, Default)]
 pub struct Lifespan {
