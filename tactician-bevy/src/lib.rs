@@ -8,11 +8,13 @@ use bevy_prototype_lyon::{prelude::*, utils::Convert};
 use bundles::*;
 use components::Size;
 use components::*;
+use events::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 mod bundles;
+mod events;
 mod components;
 mod physics;
 use physics::PhysicsPlugin;
@@ -41,6 +43,7 @@ pub fn run_game() {
         .add_plugin(PhysicsPlugin)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
+        .add_event::<SpawnMissileFromShip>()
         .add_startup_system(initialize_components.system())
         .add_system(handle_window_zoom.system())
         .add_system(enforce_size.system())
@@ -48,6 +51,7 @@ pub fn run_game() {
         .add_system(fps_counter.system())
         .add_system(kill_out_of_bounds_missiles.system())
         .add_system(kill_expired_objects.system())
+        .add_system(handle_spawn_missile_event.system())
         .add_system(update_missilecount.system())
         .add_system(follow_ship.system())
         .add_system(render_snailtrail.system())
@@ -241,15 +245,11 @@ fn enforce_size(mut size_sprite: Query<(&mut Transform, &Size)>) {
     }
 }
 
-// FIXME: yucky! this method has to handle missle spawning? gross!
-// it should emit an event!
 fn connect_ship_acceleration_to_user_input(
-    commands: &mut Commands,
     mut query: Query<&mut EnginePhysics>,
-    ship: Query<(&Position, &Velocity), With<Ship>>,
+    ship: Query<(&Position, &Velocity, &Team), With<Ship>>,
     keyboard_input: Res<Input<KeyCode>>,
-    materials: Res<Materials>,
-    time: Res<Time>,
+    mut spawn_missile_event: ResMut<Events<SpawnMissileFromShip>>,
 ) {
     if let Some(mut val) = query.iter_mut().next() {
         if keyboard_input.pressed(KeyCode::Up) {
@@ -261,33 +261,54 @@ fn connect_ship_acceleration_to_user_input(
         }
 
         if keyboard_input.pressed(KeyCode::Space) {
-            if let Some((ship_pos, ship_vel)) = ship.iter().next() {
-                commands
-                    .spawn(MissileBundle {
-                        position: ship_pos.clone(),
-                        velocity: Velocity(ship_vel.0 + (45.0 * ship_vel.0.normalize())),
-                        size: Size(0.17),
-                        lifespan: Lifespan {
-                            created_on: time.seconds_since_startup(),
-                            lifespan: 150000.0,
-                        },
-                        snail_trail: SnailTrail {
-                            max_points: 30,
-                            points: Vec::with_capacity(3),
-                        },
-                        ..Default::default()
-                    })
-                    .with_bundle(SpriteBundle {
-                        material: materials.missile_mat_handle.clone(),
-                        transform: Transform {
-                            translation: Vec3::new(ship_vel.0.x, ship_vel.0.y, 0.0),
-                            scale: Vec3::zero(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    });
+            if let Some((ship_pos, ship_vel, ship_team)) = ship.iter().next() {
+                spawn_missile_event.send(SpawnMissileFromShip {
+                    position: ship_pos.clone(),
+                    velocity: Velocity(ship_vel.0 + (45.0 * ship_vel.0.normalize())),
+                    team: ship_team.clone()
+                });
             }
         }
+    }
+}
+
+fn handle_spawn_missile_event(
+    events: Res<Events<SpawnMissileFromShip>>,
+    mut event_reader: Local<EventReader<SpawnMissileFromShip>>,
+    commands: &mut Commands,
+    time: Res<Time>,
+    materials: Res<Materials>,
+) {
+    for missile_spawn_request in event_reader.iter(&events) {
+        commands
+            .spawn(MissileBundle {
+                position: missile_spawn_request.position.clone(),
+                velocity: missile_spawn_request.velocity.clone(),
+                team: missile_spawn_request.team.clone(),
+                size: Size(0.17),
+                lifespan: Lifespan {
+                    created_on: time.seconds_since_startup(),
+                    lifespan: 150000.0,
+                },
+                snail_trail: SnailTrail {
+                    max_points: 30,
+                    points: Vec::with_capacity(3),
+                },
+                ..Default::default()
+            })
+            .with_bundle(SpriteBundle {
+                material: materials.missile_mat_handle.clone(),
+                transform: Transform {
+                    translation: Vec3::new(
+                        missile_spawn_request.position.0.x,
+                        missile_spawn_request.position.0.y,
+                        0.0,
+                    ),
+                    scale: Vec3::zero(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
     }
 }
 
