@@ -84,3 +84,6 @@ pub struct Lifespan {
     /// Number of seconds for which this item should be alive
     pub lifespan: f64,
 }
+
+#[derive(Debug, Default)]
+pub struct AnimateOnce;

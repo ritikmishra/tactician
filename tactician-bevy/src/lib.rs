@@ -50,6 +50,7 @@ pub fn run_game() {
         .add_startup_system(initialize_components.system())
         .add_system(handle_window_zoom.system())
         .add_system(enforce_size.system())
+        .add_system(animate_sprite_system.system())
         .add_system(connect_ship_acceleration_to_user_input.system())
         .add_system(fps_counter.system())
         .add_system(kill_out_of_bounds_missiles.system())
@@ -69,6 +70,7 @@ fn initialize_components(
     commands: &mut Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
     // create the ui
     // camera2dbundle is needed for the 2d rendering
@@ -88,10 +90,17 @@ fn initialize_components(
     let ship_handle = asset_server.load("images/ship.png");
     let ship_material = materials.add(ship_handle.into());
 
+    let texture_handle = asset_server.load("images/explosion_spritesheet.png");
+    let number_frames = 32;
+    let texture_atlas =
+        TextureAtlas::from_grid(texture_handle, Vec2::splat(300.), 1, number_frames);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
     commands.insert_resource(Materials {
         ship_mat_handle: ship_material.clone(),
         planet_mat_handle: planet_material.clone(),
         missile_mat_handle: missile_material.clone(),
+        explosion_spritesheet_handle: texture_atlas_handle,
     });
 
     commands
@@ -218,6 +227,36 @@ fn update_missilecount(
     let missile_count = missiles.iter().count();
     for mut missile_count_text in missile_count_texts.iter_mut() {
         missile_count_text.value = format!("{}", missile_count);
+    }
+}
+
+fn animate_sprite_system(
+    commands: &mut Commands,
+    time: Res<Time>,
+    texture_atlases: Res<Assets<TextureAtlas>>,
+    mut query: Query<(
+        Entity,
+        &mut Timer,
+        &mut TextureAtlasSprite,
+        &Handle<TextureAtlas>,
+        Option<&AnimateOnce>,
+    )>,
+) {
+    for (entity_id, mut timer, mut sprite, texture_atlas_handle, maybe_animate_once) in
+        query.iter_mut()
+    {
+        timer.tick(time.delta_seconds());
+        if timer.finished() {
+            let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
+            let next_sprite_idx = (sprite.index as usize + 1) % texture_atlas.textures.len();
+
+            // delete entity if it's only supposed to animate once (e.g like explosions)
+            if next_sprite_idx == 0 && maybe_animate_once.is_some() {
+                commands.despawn(entity_id);
+            } else {
+                sprite.index = next_sprite_idx as u32;
+            }
+        }
     }
 }
 
@@ -379,22 +418,17 @@ fn create_explosion(
     commands: &mut Commands,
     explosion_events: Res<Events<CreateExplosionEvent>>,
     mut event_reader: Local<EventReader<CreateExplosionEvent>>,
-    time: Res<Time>,
+    materials: Res<Materials>,
 ) {
     for ev in event_reader.iter(&explosion_events) {
         commands
             .spawn(ExplosionBundle {
                 position: ev.position.clone(),
                 velocity: ev.velocity.clone(),
-                lifespan: Lifespan {
-                    created_on: time.seconds_since_startup(),
-                    lifespan: 3.0,
-                },
                 ..Default::default()
             })
-            .with_bundle(SpriteBundle {
-                // FIXME: fix the ugly sprite for explosions
-                sprite: Sprite::new(Vec2::splat(100.)),
+            .with_bundle(SpriteSheetBundle {
+                texture_atlas: materials.explosion_spritesheet_handle.clone(),
                 ..Default::default()
             });
     }
