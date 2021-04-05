@@ -55,6 +55,7 @@ pub fn run_game() {
         .add_system(fps_counter.system())
         .add_system(kill_out_of_bounds_missiles.system())
         .add_system(kill_expired_objects.system())
+        .add_system(explode_missiles_near_planets.system())
         .add_system(handle_spawn_missile_event.system())
         .add_system(update_missilecount.system())
         .add_system(follow_ship.system())
@@ -431,6 +432,30 @@ fn create_explosion(
                 texture_atlas: materials.explosion_spritesheet_handle.clone(),
                 ..Default::default()
             });
+    }
+}
+
+fn explode_missiles_near_planets(
+    commands: &mut Commands,
+    missiles: Query<(Entity, &Position, &Velocity), With<Missile>>,
+    planets: Query<(&Position, &Sprite, &Size), With<GravitySource>>,
+    mut explosion_event: ResMut<Events<CreateExplosionEvent>>
+) {
+    for (missile_id, missile_pos, missile_vel) in missiles.iter() {
+        'planets_loop: for (planet_pos, planet_sprite, Size(planet_size)) in planets.iter() {
+            // Assumes that the planet is circular, this will need to get changed if we want lumpy asteroid type things or smth
+            let planet_radius = planet_sprite.size.length() * planet_size * 0.5;
+            let distance_between_missile_and_planet = (planet_pos.0 - missile_pos.0).length();
+
+            if distance_between_missile_and_planet < planet_radius {
+                commands.despawn(missile_id);
+                explosion_event.send(CreateExplosionEvent {
+                    position: missile_pos.clone(),
+                    velocity: missile_vel.clone()
+                });
+                break 'planets_loop;
+            }
+        }
     }
 }
 
