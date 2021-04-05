@@ -6,6 +6,8 @@ pub struct SpawnMissileFromShip {
     pub team: Team,
 }
 
+
+#[derive(Debug, Default)]
 pub struct CreateExplosionEvent {
     pub position: Position,
     pub velocity: Velocity

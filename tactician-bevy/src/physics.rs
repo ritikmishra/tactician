@@ -37,7 +37,7 @@ fn rotate_sprite_for_components_with_engine(mut engine_sprite: Query<(&mut Trans
 
 fn apply_gravity_from_planets_to_ships(
     planets: Query<(&Position, &Mass), With<GravitySource>>,
-    mut ships: Query<(&Position, &mut Velocity), Without<GravitySource>>,
+    mut ships: Query<(&Position, &mut Velocity), (Without<GravitySource>, With<Mass>)>,
     time: Res<Time>,
 ) {
     for (ship_pos, mut ship_vel) in ships.iter_mut() {

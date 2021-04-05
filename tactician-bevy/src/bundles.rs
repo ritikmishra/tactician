@@ -52,6 +52,7 @@ pub struct MissileBundle {
     pub position: Position,
     pub velocity: Velocity,
     pub size: Size,
+    pub mass: Mass,
     pub lifespan: Lifespan,
     pub missile: Missile,
     pub team: Team,
