@@ -76,7 +76,7 @@ impl Default for ExplosionBundle {
             animate_timer: Timer::from_seconds(1.0 / 60.0, true),
             position: Position::default(),
             velocity: Velocity::default(),
-            size: Size::default(),
+            size: Size(0.25),
         }
     }
 }
