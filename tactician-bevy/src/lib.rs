@@ -390,18 +390,18 @@ fn kill_expired_objects(
 
 fn check_if_missile_should_kill_ship(
     commands: &mut Commands,
-    ships: Query<(Entity, &Position, &Velocity, &Team), With<Ship>>,
+    ships: Query<(Entity, &Position, &Velocity, &Team, &Sprite, &Size), With<Ship>>,
     missiles: Query<(Entity, &Position, &Velocity, &Team), With<Missile>>,
     mut explosion_event: ResMut<Events<CreateExplosionEvent>>,
 ) {
-    const EXPLOSION_RADIUS: f32 = 5.0;
-
-    for (ship_id, Position(ship_pos), Velocity(ship_vel), Team(ship_team_id)) in ships.iter() {
+    for (ship_id, Position(ship_pos), Velocity(ship_vel), Team(ship_team_id), ship_sprite, Size(ship_size)) in ships.iter() {
         for (missile_id, Position(missile_pos), Velocity(missile_vel), Team(missile_team_id)) in
             missiles.iter()
         {
             if ship_team_id != missile_team_id {
-                if (*ship_pos - *missile_pos).length_squared() < EXPLOSION_RADIUS * EXPLOSION_RADIUS
+                let dist_from_ship_to_missile = (*ship_pos - *missile_pos).length();
+                let ship_size = ship_sprite.size.length() * 0.5 * ship_size;
+                if dist_from_ship_to_missile < ship_size
                 {
                     commands.despawn(ship_id);
                     commands.despawn(missile_id);
