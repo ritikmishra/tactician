@@ -44,7 +44,7 @@ pub fn run_game() {
     app.add_plugin(ShapePlugin)
         .add_plugin(PhysicsPlugin)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
+        .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_event::<SpawnMissileFromShip>()
         .add_event::<CreateExplosionEvent>()
         .add_startup_system(initialize_components.system())
@@ -68,19 +68,18 @@ pub fn run_game() {
 const FONT: &str = "fonts/FiraMono-Medium.ttf";
 
 fn initialize_components(
-    commands: &mut Commands,
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
     // create the ui
-    // camera2dbundle is needed for the 2d rendering
-    // camerauibundle is needed for text/UI element rendering
-    let mut camera_bundle = Camera2dBundle::default();
+    // OrthographicCameraBundle is needed for the 2d rendering
+    // uicamerabundle is needed for text/UI element rendering
+    let mut camera_bundle = OrthographicCameraBundle::new_2d();
     camera_bundle.transform.scale = Vec3::splat(5.0);
-    commands
-        .spawn(camera_bundle)
-        .spawn(CameraUiBundle::default());
+    commands.spawn_bundle(camera_bundle);
+    commands.spawn_bundle(UiCameraBundle::default());
 
     let planet_handle = asset_server.load("images/planet.png");
     let planet_material = materials.add(planet_handle.into());
@@ -105,12 +104,12 @@ fn initialize_components(
     });
 
     commands
-        .spawn(StarBundle {
+        .spawn_bundle(StarBundle {
             position: Position(Vec2::new(0., 0.)),
             mass: Mass(3e15),
             ..Default::default()
         })
-        .with_bundle(SpriteBundle {
+        .insert_bundle(SpriteBundle {
             material: planet_material.clone(),
             ..Default::default()
         });
@@ -122,33 +121,33 @@ fn initialize_components(
         let angle = std::f32::consts::PI * 2.0 * (i as f32) / (max as f32);
         let planet_pos = Vec2::new(angle.sin() * (diam), angle.cos() * (diam));
         commands
-            .spawn(PlanetBundle {
+            .spawn_bundle(PlanetBundle {
                 position: Position(planet_pos),
                 mass: Mass(1e15),
                 velocity: Velocity(Vec2::new(-angle.cos() * speed, angle.sin() * speed)),
                 ..Default::default()
             })
-            .with_bundle(SpriteBundle {
+            .insert_bundle(SpriteBundle {
                 material: planet_material.clone(),
                 ..Default::default()
             });
 
         commands
-            .spawn(PlanetBundle {
+            .spawn_bundle(PlanetBundle {
                 position: Position(planet_pos + Vec2::new(45., 45.)),
                 mass: Mass(1e9),
                 velocity: Velocity(Vec2::new(-20.0, -1.0)),
                 size: Size(0.5),
                 ..Default::default()
             })
-            .with_bundle(SpriteBundle {
+            .insert_bundle(SpriteBundle {
                 material: planet_material.clone(),
                 ..Default::default()
             });
     }
 
     commands
-        .spawn(ShipBundle {
+        .spawn_bundle(ShipBundle {
             position: Position(Vec2::new(70., 240.)),
             mass: Mass(0.0001),
             velocity: Velocity(Vec2::new(40.0, -20.0)),
@@ -159,13 +158,13 @@ fn initialize_components(
             },
             ..Default::default()
         })
-        .with_bundle(SpriteBundle {
+        .insert_bundle(SpriteBundle {
             material: ship_material.clone(),
             ..Default::default()
         });
 
     commands
-        .spawn(ShipBundle {
+        .spawn_bundle(ShipBundle {
             position: Position(Vec2::new(300., 0.)),
             mass: Mass(0.0001),
             velocity: Velocity(Vec2::new(0.0, -40.0)),
@@ -177,48 +176,51 @@ fn initialize_components(
             team: Team(NonZeroU32::new(3)),
             ..Default::default()
         })
-        .with_bundle(SpriteBundle {
+        .insert_bundle(SpriteBundle {
             // FIXME: enemy ships should use a different sprite/color
             material: ship_material,
             ..Default::default()
         });
 
     // create the fps counter
-    commands.spawn((FPSCount,)).with_bundle(TextBundle {
+    commands.spawn().insert(FPSCount).insert_bundle(TextBundle {
         style: Style {
             align_self: AlignSelf::FlexEnd,
             flex_direction: FlexDirection::Column,
             ..Default::default()
         },
-        text: Text {
-            value: "FPS counter".to_string(),
-            font: asset_server.load(FONT),
-            style: TextStyle {
+        text: Text::with_section(
+            "FPS Counter",
+            TextStyle {
                 font_size: 20.0,
                 color: Color::WHITE,
-                ..Default::default()
+                font: asset_server.load(FONT),
             },
-        },
+            Default::default(),
+        ),
         ..Default::default()
     });
 
-    commands.spawn((MissileCount,)).with_bundle(TextBundle {
-        style: Style {
-            align_self: AlignSelf::FlexStart,
-            flex_direction: FlexDirection::Row,
-            ..Default::default()
-        },
-        text: Text {
-            value: "missileCount".into(),
-            font: asset_server.load(FONT),
-            style: TextStyle {
-                font_size: 20.0,
-                color: Color::WHITE,
+    commands
+        .spawn()
+        .insert(MissileCount)
+        .insert_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexStart,
+                flex_direction: FlexDirection::Row,
                 ..Default::default()
             },
-        },
-        ..Default::default()
-    });
+            text: Text::with_section(
+                "missileCount",
+                TextStyle {
+                    font_size: 20.0,
+                    color: Color::WHITE,
+                    font: asset_server.load(FONT),
+                },
+                Default::default(),
+            ),
+            ..Default::default()
+        });
 }
 
 fn update_missilecount(
@@ -227,12 +229,12 @@ fn update_missilecount(
 ) {
     let missile_count = missiles.iter().count();
     for mut missile_count_text in missile_count_texts.iter_mut() {
-        missile_count_text.value = format!("{}", missile_count);
+        missile_count_text.sections[0].value = format!("{}", missile_count);
     }
 }
 
 fn animate_sprite_system(
-    commands: &mut Commands,
+    mut commands: Commands,
     time: Res<Time>,
     texture_atlases: Res<Assets<TextureAtlas>>,
     mut query: Query<(
@@ -246,14 +248,14 @@ fn animate_sprite_system(
     for (entity_id, mut timer, mut sprite, texture_atlas_handle, maybe_animate_once) in
         query.iter_mut()
     {
-        timer.tick(time.delta_seconds());
+        timer.tick(time.delta());
         if timer.finished() {
             let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
             let next_sprite_idx = (sprite.index as usize + 1) % texture_atlas.textures.len();
 
             // delete entity if it's only supposed to animate once (e.g like explosions)
             if next_sprite_idx == 0 && maybe_animate_once.is_some() {
-                commands.despawn(entity_id);
+                commands.entity(entity_id).despawn();
             } else {
                 sprite.index = next_sprite_idx as u32;
             }
@@ -262,14 +264,13 @@ fn animate_sprite_system(
 }
 
 fn render_snailtrail(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut objects_with_snail_trail: Query<(&Position, &mut SnailTrail)>,
     snail_trails: Query<Entity, With<SnailTrailEntityMarker>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // despawn the old snail trails
     for old_snail_trail in snail_trails.iter() {
-        commands.despawn(old_snail_trail);
+        commands.entity(old_snail_trail).despawn();
     }
 
     // update the snail trail (point vec) for the objects
@@ -283,13 +284,13 @@ fn render_snailtrail(
             trail.points.remove(0);
         }
         commands
-            .spawn(GeometryBuilder::build_as(
+            .spawn_bundle(GeometryBuilder::build_as(
                 &*trail,
-                materials.add(ColorMaterial::color(Color::WHITE)),
-                TessellationMode::Stroke(StrokeOptions::default()),
+                ShapeColors::new(Color::WHITE),
+                DrawMode::Stroke(StrokeOptions::default()),
                 Transform::default(),
             ))
-            .with(SnailTrailEntityMarker);
+            .insert(SnailTrailEntityMarker);
     }
 }
 
@@ -297,7 +298,7 @@ fn fps_counter(time: Res<Diagnostics>, mut texts: Query<&mut Text, With<FPSCount
     if let Some(fps_stats) = time.get(FrameTimeDiagnosticsPlugin::FPS) {
         if let Some(fps_num) = fps_stats.average() {
             for mut text in texts.iter_mut() {
-                text.value = format!("{:.2}", fps_num);
+                text.sections[0].value = format!("{:.2}", fps_num);
             }
         }
     }
@@ -313,7 +314,7 @@ fn connect_ship_acceleration_to_user_input(
     mut query: Query<&mut EnginePhysics>,
     ship: Query<(&Position, &Velocity, &Team), With<Ship>>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut spawn_missile_event: ResMut<Events<SpawnMissileFromShip>>,
+    mut spawn_missile_event: EventWriter<SpawnMissileFromShip>,
 ) {
     if let Some(mut val) = query.iter_mut().next() {
         if keyboard_input.pressed(KeyCode::Up) {
@@ -337,15 +338,14 @@ fn connect_ship_acceleration_to_user_input(
 }
 
 fn handle_spawn_missile_event(
-    events: Res<Events<SpawnMissileFromShip>>,
-    mut event_reader: Local<EventReader<SpawnMissileFromShip>>,
-    commands: &mut Commands,
+    mut event_reader: EventReader<SpawnMissileFromShip>,
+    mut commands: Commands,
     time: Res<Time>,
     materials: Res<Materials>,
 ) {
-    for missile_spawn_request in event_reader.iter(&events) {
+    for missile_spawn_request in event_reader.iter() {
         commands
-            .spawn(MissileBundle {
+            .spawn_bundle(MissileBundle {
                 position: missile_spawn_request.position.clone(),
                 velocity: missile_spawn_request.velocity.clone(),
                 team: missile_spawn_request.team.clone(),
@@ -360,7 +360,7 @@ fn handle_spawn_missile_event(
                 },
                 ..Default::default()
             })
-            .with_bundle(SpriteBundle {
+            .insert_bundle(SpriteBundle {
                 material: materials.missile_mat_handle.clone(),
                 transform: Transform {
                     translation: Vec3::new(
@@ -368,7 +368,7 @@ fn handle_spawn_missile_event(
                         missile_spawn_request.position.0.y,
                         0.0,
                     ),
-                    scale: Vec3::zero(),
+                    scale: Vec3::ZERO,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -377,34 +377,41 @@ fn handle_spawn_missile_event(
 }
 
 fn kill_expired_objects(
-    commands: &mut Commands,
+    mut commands: Commands,
     time: Res<Time>,
     lifespan_objects: Query<(Entity, &Lifespan)>,
 ) {
     for (id, lifespan) in lifespan_objects.iter() {
         if lifespan.created_on + lifespan.lifespan < time.seconds_since_startup() {
-            commands.despawn(id);
+            commands.entity(id).despawn();
         }
     }
 }
 
 fn check_if_missile_should_kill_ship(
-    commands: &mut Commands,
+    mut commands: Commands,
     ships: Query<(Entity, &Position, &Velocity, &Team, &Sprite, &Size), With<Ship>>,
     missiles: Query<(Entity, &Position, &Velocity, &Team), With<Missile>>,
-    mut explosion_event: ResMut<Events<CreateExplosionEvent>>,
+    mut explosion_event: EventWriter<CreateExplosionEvent>,
 ) {
-    for (ship_id, Position(ship_pos), Velocity(ship_vel), Team(ship_team_id), ship_sprite, Size(ship_size)) in ships.iter() {
+    for (
+        ship_id,
+        Position(ship_pos),
+        Velocity(ship_vel),
+        Team(ship_team_id),
+        ship_sprite,
+        Size(ship_size),
+    ) in ships.iter()
+    {
         for (missile_id, Position(missile_pos), Velocity(missile_vel), Team(missile_team_id)) in
             missiles.iter()
         {
             if ship_team_id != missile_team_id {
                 let dist_from_ship_to_missile = (*ship_pos - *missile_pos).length();
                 let ship_size = ship_sprite.size.length() * 0.5 * ship_size;
-                if dist_from_ship_to_missile < ship_size
-                {
-                    commands.despawn(ship_id);
-                    commands.despawn(missile_id);
+                if dist_from_ship_to_missile < ship_size {
+                    commands.entity(ship_id).despawn();
+                    commands.entity(missile_id).despawn();
                     explosion_event.send(CreateExplosionEvent {
                         position: Position(*ship_pos),
                         velocity: Velocity(*ship_vel + *missile_vel),
@@ -416,19 +423,18 @@ fn check_if_missile_should_kill_ship(
 }
 
 fn create_explosion(
-    commands: &mut Commands,
-    explosion_events: Res<Events<CreateExplosionEvent>>,
-    mut event_reader: Local<EventReader<CreateExplosionEvent>>,
+    mut commands: Commands,
+    mut event_reader: EventReader<CreateExplosionEvent>,
     materials: Res<Materials>,
 ) {
-    for ev in event_reader.iter(&explosion_events) {
+    for ev in event_reader.iter() {
         commands
-            .spawn(ExplosionBundle {
+            .spawn_bundle(ExplosionBundle {
                 position: ev.position.clone(),
                 velocity: ev.velocity.clone(),
                 ..Default::default()
             })
-            .with_bundle(SpriteSheetBundle {
+            .insert_bundle(SpriteSheetBundle {
                 texture_atlas: materials.explosion_spritesheet_handle.clone(),
                 ..Default::default()
             });
@@ -436,10 +442,10 @@ fn create_explosion(
 }
 
 fn explode_missiles_near_planets(
-    commands: &mut Commands,
+    mut commands: Commands,
     missiles: Query<(Entity, &Position, &Velocity), With<Missile>>,
     planets: Query<(&Position, &Sprite, &Size), With<GravitySource>>,
-    mut explosion_event: ResMut<Events<CreateExplosionEvent>>
+    mut explosion_event: EventWriter<CreateExplosionEvent>,
 ) {
     for (missile_id, missile_pos, missile_vel) in missiles.iter() {
         'planets_loop: for (planet_pos, planet_sprite, Size(planet_size)) in planets.iter() {
@@ -448,10 +454,10 @@ fn explode_missiles_near_planets(
             let distance_between_missile_and_planet = (planet_pos.0 - missile_pos.0).length();
 
             if distance_between_missile_and_planet < planet_radius {
-                commands.despawn(missile_id);
+                commands.entity(missile_id).despawn();
                 explosion_event.send(CreateExplosionEvent {
                     position: missile_pos.clone(),
-                    velocity: missile_vel.clone()
+                    velocity: missile_vel.clone(),
                 });
                 break 'planets_loop;
             }
@@ -460,7 +466,7 @@ fn explode_missiles_near_planets(
 }
 
 fn kill_out_of_bounds_missiles(
-    commands: &mut Commands,
+    mut commands: Commands,
     cam_trans_query: Query<&Transform, With<Camera>>,
     window: Res<Windows>,
     missiles: Query<(Entity, &Transform), With<Missile>>,
@@ -480,11 +486,11 @@ fn kill_out_of_bounds_missiles(
     );
     for (missile_id, missile_pos) in missiles.iter() {
         if !(-half_width < missile_pos.translation.x - cam_offset.x
-            && missile_pos.translation.x - cam_offset.x < half_width)
-            || !(-half_height < missile_pos.translation.y - cam_offset.y
-                && missile_pos.translation.y - cam_offset.y < half_height)
+            && missile_pos.translation.x - cam_offset.x < half_width
+            && -half_height < missile_pos.translation.y - cam_offset.y
+            && missile_pos.translation.y - cam_offset.y < half_height)
         {
-            commands.despawn(missile_id);
+            commands.entity(missile_id).despawn();
         }
     }
 }
@@ -496,16 +502,16 @@ fn handle_window_zoom(
     if let Some(mut cam) = camera.iter_mut().next() {
         // scale vec should always have x == y == z. so if x == y == z == 1, length squared == 3
         if keyboard_input.pressed(KeyCode::Equals) && cam.scale.length_squared() > 3. {
-            cam.scale = cam.scale / 1.01;
+            cam.scale /= 1.01;
         } else if keyboard_input.pressed(KeyCode::Minus) && cam.scale.length_squared() < 200. {
-            cam.scale = cam.scale * 1.01;
+            cam.scale *= 1.01;
         }
     }
 }
 
 fn follow_ship(
-    mut camera: Query<&mut Transform, With<Camera>>,
-    ship: Query<&Transform, With<Ship>>,
+    mut camera: Query<&mut Transform, (With<Camera>, Without<Ship>)>,
+    ship: Query<&Transform, (With<Ship>, Without<Camera>)>,
 ) {
     if let (Some(mut cam_trans), Some(ship_trans)) = (camera.iter_mut().next(), ship.iter().next())
     {

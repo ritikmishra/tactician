@@ -20,9 +20,9 @@ wasm_panic = ["console_error_panic_hook"]
 
 
 [dependencies]
-bevy = { version = "0.4", default-features=false, features=["render", "png", "bevy_winit"] }
-bevy_webgl2 = { version = "0.4", optional = true }
-bevy_prototype_lyon = "0.2"
+bevy = { version = "0.5", default-features=false, features=["render", "png", "bevy_winit"] }
+bevy_webgl2 = { version = "0.5.2", optional = true }
+bevy_prototype_lyon = "0.3.1"
 lyon = "*"
 rand = "0.8"
 getrandom = { version = "0.1" }

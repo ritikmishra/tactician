@@ -31,7 +31,7 @@ fn move_sprite_to_physics_pos(mut physics_sprite: Query<(&mut Transform, &Positi
 fn rotate_sprite_for_components_with_engine(mut engine_sprite: Query<(&mut Transform, &Velocity)>) {
     for (mut sprite_transform, velocity) in engine_sprite.iter_mut() {
         sprite_transform.rotation =
-            Quat::from_rotation_z(-velocity.0.angle_between(Vec2::unit_y()));
+            Quat::from_rotation_z(-velocity.0.angle_between(Vec2::Y));
     }
 }
 
@@ -52,9 +52,9 @@ fn apply_gravity_from_planets_to_ships(
 
                 // don't multiply by ship mass - we want acceleration on ship (F = ma)
                 let accel_magnitude = G * p_mass / dist2;
-                return accel_direction * accel_magnitude;
+                accel_direction * accel_magnitude
             })
-            .fold(Vec2::zero(), Vec2::add);
+            .fold(Vec2::ZERO, Vec2::add);
 
         ship_vel.0 += aggregate_grav_accel * time.delta_seconds();
     }
@@ -82,7 +82,7 @@ fn apply_gravity_among_planets(
     // FIXME: uses aliased mutability :/
     unsafe {
         for mut planet in planets.iter_unsafe() {
-            let mut new_accel = Vec2::zero();
+            let mut new_accel = Vec2::ZERO;
             for gravity_source in planets
                 .iter_unsafe()
                 .map(|(a, b, c, _)| (a, b, c))
