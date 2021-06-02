@@ -1,5 +1,10 @@
 use std::num::NonZeroU32;
 
+use crate::bundles::*;
+use crate::components::Size;
+use crate::components::*;
+use crate::events::*;
+use crate::misc::AppState;
 use bevy::math::Vec2;
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
@@ -7,10 +12,6 @@ use bevy::{
     render::camera::Camera,
 };
 use bevy_prototype_lyon::{prelude::*, utils::Convert};
-use bundles::*;
-use components::Size;
-use components::*;
-use events::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -18,6 +19,8 @@ use wasm_bindgen::prelude::*;
 mod bundles;
 mod components;
 mod events;
+mod menu;
+mod misc;
 mod physics;
 use physics::PhysicsPlugin;
 
@@ -46,23 +49,44 @@ pub fn run_game() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_event::<SpawnMissileFromShip>()
-        .add_event::<CreateExplosionEvent>()
-        .add_startup_system(initialize_components.system())
-        .add_system(handle_window_zoom.system())
-        .add_system(enforce_size.system())
-        .add_system(animate_sprite_system.system())
-        .add_system(connect_ship_acceleration_to_user_input.system())
-        .add_system(fps_counter.system())
-        .add_system(kill_out_of_bounds_missiles.system())
-        .add_system(kill_expired_objects.system())
-        .add_system(explode_missiles_near_planets.system())
-        .add_system(handle_spawn_missile_event.system())
-        .add_system(update_missilecount.system())
-        .add_system(follow_ship.system())
-        .add_system(render_snailtrail.system())
-        .add_system(check_if_missile_should_kill_ship.system())
-        .add_system(create_explosion.system())
-        .run();
+        .add_event::<CreateExplosionEvent>();
+
+    // Add default menu state
+    app.add_state(AppState::Menu);
+
+    // menu stuff
+    app.add_system_set(SystemSet::on_enter(AppState::Menu).with_system(menu::init_menu.system()))
+        .add_system_set(
+            SystemSet::on_update(AppState::Menu).with_system(menu::update_menu.system()),
+        )
+        .add_system_set(
+            SystemSet::on_exit(AppState::Menu).with_system(delete_all_entities.system()),
+        );
+
+    // In game stuff
+    app.add_system_set(
+        SystemSet::on_enter(AppState::Game).with_system(initialize_components.system()),
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::Game)
+            .with_system(handle_window_zoom.system())
+            .with_system(enforce_size.system())
+            .with_system(animate_sprite_system.system())
+            .with_system(connect_ship_acceleration_to_user_input.system())
+            .with_system(fps_counter.system())
+            .with_system(kill_out_of_bounds_missiles.system())
+            .with_system(kill_expired_objects.system())
+            .with_system(explode_missiles_near_planets.system())
+            .with_system(handle_spawn_missile_event.system())
+            .with_system(update_missilecount.system())
+            .with_system(follow_ship.system())
+            .with_system(render_snailtrail.system())
+            .with_system(check_if_missile_should_kill_ship.system())
+            .with_system(create_explosion.system()),
+    )
+    .add_system_set(SystemSet::on_exit(AppState::Game).with_system(delete_all_entities.system()));
+
+    app.run()
 }
 
 const FONT: &str = "fonts/FiraMono-Medium.ttf";
@@ -517,4 +541,10 @@ fn follow_ship(
     {
         cam_trans.translation = ship_trans.translation;
     }
+}
+
+fn delete_all_entities(mut commands: Commands, entities: Query<Entity>) {
+    entities
+        .iter()
+        .for_each(|e| commands.entity(e).despawn_recursive());
 }
