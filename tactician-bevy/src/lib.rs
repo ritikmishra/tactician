@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 
 use crate::bundles::*;
-use crate::resources::Typography;
+use crate::resources::*;
 use crate::components::Size;
 use crate::components::*;
 use crate::events::*;
@@ -53,6 +53,7 @@ pub fn run_game() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .init_resource::<Typography>()
+        .init_resource::<Materials>()
         .add_event::<SpawnMissileFromShip>()
         .add_event::<CreateExplosionEvent>();
 
@@ -96,10 +97,8 @@ pub fn run_game() {
 
 fn initialize_components(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     typography: Res<Typography>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    materials: Res<Materials>,
 ) {
     // create the ui
     // OrthographicCameraBundle is needed for the 2d rendering
@@ -109,28 +108,6 @@ fn initialize_components(
     commands.spawn_bundle(camera_bundle);
     commands.spawn_bundle(UiCameraBundle::default());
 
-    let planet_handle = asset_server.load("images/planet.png");
-    let planet_material = materials.add(planet_handle.into());
-
-    let missile_handle = asset_server.load("images/missile.png");
-    let missile_material = materials.add(missile_handle.into());
-
-    let ship_handle = asset_server.load("images/ship.png");
-    let ship_material = materials.add(ship_handle.into());
-
-    let texture_handle = asset_server.load("images/explosion_spritesheet.png");
-    let number_frames = 32;
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::splat(300.), 1, number_frames);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-
-    commands.insert_resource(Materials {
-        ship_mat_handle: ship_material.clone(),
-        planet_mat_handle: planet_material.clone(),
-        missile_mat_handle: missile_material.clone(),
-        explosion_spritesheet_handle: texture_atlas_handle,
-    });
-
     commands
         .spawn_bundle(StarBundle {
             position: Position(Vec2::new(0., 0.)),
@@ -138,7 +115,7 @@ fn initialize_components(
             ..Default::default()
         })
         .insert_bundle(SpriteBundle {
-            material: planet_material.clone(),
+            material: materials.planet_img.clone(),
             ..Default::default()
         });
 
@@ -156,7 +133,7 @@ fn initialize_components(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: planet_material.clone(),
+                material: materials.planet_img.clone(),
                 ..Default::default()
             });
 
@@ -169,7 +146,7 @@ fn initialize_components(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: planet_material.clone(),
+                material: materials.planet_img.clone(),
                 ..Default::default()
             });
     }
@@ -187,7 +164,7 @@ fn initialize_components(
             ..Default::default()
         })
         .insert_bundle(SpriteBundle {
-            material: ship_material.clone(),
+            material: materials.ship_img.clone(),
             ..Default::default()
         });
 
@@ -206,7 +183,7 @@ fn initialize_components(
         })
         .insert_bundle(SpriteBundle {
             // FIXME: enemy ships should use a different sprite/color
-            material: ship_material,
+            material: materials.ship_img.clone(),
             ..Default::default()
         });
 
@@ -373,7 +350,7 @@ fn handle_spawn_missile_event(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: materials.missile_mat_handle.clone(),
+                material: materials.missile_img.clone(),
                 transform: Transform {
                     translation: Vec3::new(
                         missile_spawn_request.position.0.x,
@@ -447,7 +424,7 @@ fn create_explosion(
                 ..Default::default()
             })
             .insert_bundle(SpriteSheetBundle {
-                texture_atlas: materials.explosion_spritesheet_handle.clone(),
+                texture_atlas: materials.explosion_frames.clone(),
                 ..Default::default()
             });
     }

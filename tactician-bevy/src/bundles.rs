@@ -105,13 +105,6 @@ impl Geometry for SnailTrail {
     }
 }
 
-pub struct Materials {
-    pub ship_mat_handle: Handle<ColorMaterial>,
-    pub planet_mat_handle: Handle<ColorMaterial>,
-    pub missile_mat_handle: Handle<ColorMaterial>,
-    pub explosion_spritesheet_handle: Handle<TextureAtlas>,
-}
-
 /// The snail trail component is separate from the actual ship/planet/missile
 /// The entire trail is despawned and redrawn
 pub struct SnailTrailEntityMarker;
