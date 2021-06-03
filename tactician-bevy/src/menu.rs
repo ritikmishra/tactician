@@ -1,4 +1,5 @@
 use crate::misc::AppState;
+use crate::resources::Typography;
 use bevy::prelude::*;
 
 // struct MenuData {
@@ -7,7 +8,7 @@ use bevy::prelude::*;
 
 pub fn init_menu(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    typography: Res<Typography>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn_bundle(UiCameraBundle::default());
@@ -27,11 +28,7 @@ pub fn init_menu(
             parent.spawn_bundle(TextBundle {
                 text: Text::with_section(
                     "Tactician",
-                    TextStyle {
-                        font_size: 60.0,
-                        font: asset_server.load("fonts/FiraMono-Medium.ttf"),
-                        color: Color::WHITE
-                    },
+                    typography.heading.clone(),
                     TextAlignment {
                         horizontal: HorizontalAlign::Center,
                         vertical: VerticalAlign::Center,
@@ -55,11 +52,7 @@ pub fn init_menu(
                     parent.spawn_bundle(TextBundle {
                         text: Text::with_section(
                             "Play",
-                            TextStyle {
-                                font: asset_server.load("fonts/FiraMono-Medium.ttf"),
-                                font_size: 20.0,
-                                color: Color::WHITE,
-                            },
+                            typography.body.clone(),
                             Default::default(),
                         ),
                         ..Default::default()

@@ -1,6 +1,7 @@
 use std::num::NonZeroU32;
 
 use crate::bundles::*;
+use crate::resources::Typography;
 use crate::components::Size;
 use crate::components::*;
 use crate::events::*;
@@ -17,6 +18,7 @@ use bevy_prototype_lyon::{prelude::*, utils::Convert};
 use wasm_bindgen::prelude::*;
 
 mod bundles;
+mod resources;
 mod components;
 mod events;
 mod menu;
@@ -26,6 +28,8 @@ use physics::PhysicsPlugin;
 
 #[cfg(all(not(feature = "wasm"), not(feature = "native")))]
 compile_error!("You have to build this binary (tactician-bevy) with either the 'wasm' feature or 'native' feature");
+
+
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn run_game() {
@@ -48,6 +52,7 @@ pub fn run_game() {
         .add_plugin(PhysicsPlugin)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
+        .init_resource::<Typography>()
         .add_event::<SpawnMissileFromShip>()
         .add_event::<CreateExplosionEvent>();
 
@@ -89,11 +94,10 @@ pub fn run_game() {
     app.run()
 }
 
-const FONT: &str = "fonts/FiraMono-Medium.ttf";
-
 fn initialize_components(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    typography: Res<Typography>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
@@ -213,15 +217,7 @@ fn initialize_components(
             flex_direction: FlexDirection::Column,
             ..Default::default()
         },
-        text: Text::with_section(
-            "FPS Counter",
-            TextStyle {
-                font_size: 20.0,
-                color: Color::WHITE,
-                font: asset_server.load(FONT),
-            },
-            Default::default(),
-        ),
+        text: Text::with_section("FPS Counter", typography.body.clone(), Default::default()),
         ..Default::default()
     });
 
@@ -234,15 +230,7 @@ fn initialize_components(
                 flex_direction: FlexDirection::Row,
                 ..Default::default()
             },
-            text: Text::with_section(
-                "missileCount",
-                TextStyle {
-                    font_size: 20.0,
-                    color: Color::WHITE,
-                    font: asset_server.load(FONT),
-                },
-                Default::default(),
-            ),
+            text: Text::with_section("missileCount", typography.body.clone(), Default::default()),
             ..Default::default()
         });
 }
