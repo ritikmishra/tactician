@@ -1,5 +1,11 @@
 use std::num::NonZeroU32;
 
+use crate::bundles::*;
+use crate::resources::*;
+use crate::components::Size;
+use crate::components::*;
+use crate::events::*;
+use crate::misc::AppState;
 use bevy::math::Vec2;
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
@@ -7,22 +13,23 @@ use bevy::{
     render::camera::Camera,
 };
 use bevy_prototype_lyon::{prelude::*, utils::Convert};
-use bundles::*;
-use components::Size;
-use components::*;
-use events::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 mod bundles;
+mod resources;
 mod components;
 mod events;
+mod menu;
+mod misc;
 mod physics;
 use physics::PhysicsPlugin;
 
 #[cfg(all(not(feature = "wasm"), not(feature = "native")))]
 compile_error!("You have to build this binary (tactician-bevy) with either the 'wasm' feature or 'native' feature");
+
+
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn run_game() {
@@ -45,33 +52,53 @@ pub fn run_game() {
         .add_plugin(PhysicsPlugin)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
+        .init_resource::<Typography>()
+        .init_resource::<Materials>()
         .add_event::<SpawnMissileFromShip>()
-        .add_event::<CreateExplosionEvent>()
-        .add_startup_system(initialize_components.system())
-        .add_system(handle_window_zoom.system())
-        .add_system(enforce_size.system())
-        .add_system(animate_sprite_system.system())
-        .add_system(connect_ship_acceleration_to_user_input.system())
-        .add_system(fps_counter.system())
-        .add_system(kill_out_of_bounds_missiles.system())
-        .add_system(kill_expired_objects.system())
-        .add_system(explode_missiles_near_planets.system())
-        .add_system(handle_spawn_missile_event.system())
-        .add_system(update_missilecount.system())
-        .add_system(follow_ship.system())
-        .add_system(render_snailtrail.system())
-        .add_system(check_if_missile_should_kill_ship.system())
-        .add_system(create_explosion.system())
-        .run();
-}
+        .add_event::<CreateExplosionEvent>();
 
-const FONT: &str = "fonts/FiraMono-Medium.ttf";
+    // Add default menu state
+    app.add_state(AppState::Menu);
+
+    // menu stuff
+    app.add_system_set(SystemSet::on_enter(AppState::Menu).with_system(menu::init_menu.system()))
+        .add_system_set(
+            SystemSet::on_update(AppState::Menu).with_system(menu::update_menu.system()),
+        )
+        .add_system_set(
+            SystemSet::on_exit(AppState::Menu).with_system(delete_all_entities.system()),
+        );
+
+    // In game stuff
+    app.add_system_set(
+        SystemSet::on_enter(AppState::Game).with_system(initialize_components.system()),
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::Game)
+            .with_system(handle_window_zoom.system())
+            .with_system(enforce_size.system())
+            .with_system(animate_sprite_system.system())
+            .with_system(connect_ship_acceleration_to_user_input.system())
+            .with_system(fps_counter.system())
+            .with_system(kill_out_of_bounds_missiles.system())
+            .with_system(kill_expired_objects.system())
+            .with_system(explode_missiles_near_planets.system())
+            .with_system(handle_spawn_missile_event.system())
+            .with_system(update_missilecount.system())
+            .with_system(follow_ship.system())
+            .with_system(render_snailtrail.system())
+            .with_system(check_if_missile_should_kill_ship.system())
+            .with_system(create_explosion.system()),
+    )
+    .add_system_set(SystemSet::on_exit(AppState::Game).with_system(delete_all_entities.system()));
+
+    app.run()
+}
 
 fn initialize_components(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    typography: Res<Typography>,
+    materials: Res<Materials>,
 ) {
     // create the ui
     // OrthographicCameraBundle is needed for the 2d rendering
@@ -81,28 +108,6 @@ fn initialize_components(
     commands.spawn_bundle(camera_bundle);
     commands.spawn_bundle(UiCameraBundle::default());
 
-    let planet_handle = asset_server.load("images/planet.png");
-    let planet_material = materials.add(planet_handle.into());
-
-    let missile_handle = asset_server.load("images/missile.png");
-    let missile_material = materials.add(missile_handle.into());
-
-    let ship_handle = asset_server.load("images/ship.png");
-    let ship_material = materials.add(ship_handle.into());
-
-    let texture_handle = asset_server.load("images/explosion_spritesheet.png");
-    let number_frames = 32;
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::splat(300.), 1, number_frames);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-
-    commands.insert_resource(Materials {
-        ship_mat_handle: ship_material.clone(),
-        planet_mat_handle: planet_material.clone(),
-        missile_mat_handle: missile_material.clone(),
-        explosion_spritesheet_handle: texture_atlas_handle,
-    });
-
     commands
         .spawn_bundle(StarBundle {
             position: Position(Vec2::new(0., 0.)),
@@ -110,7 +115,7 @@ fn initialize_components(
             ..Default::default()
         })
         .insert_bundle(SpriteBundle {
-            material: planet_material.clone(),
+            material: materials.planet_img.clone(),
             ..Default::default()
         });
 
@@ -128,7 +133,7 @@ fn initialize_components(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: planet_material.clone(),
+                material: materials.planet_img.clone(),
                 ..Default::default()
             });
 
@@ -141,7 +146,7 @@ fn initialize_components(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: planet_material.clone(),
+                material: materials.planet_img.clone(),
                 ..Default::default()
             });
     }
@@ -159,7 +164,7 @@ fn initialize_components(
             ..Default::default()
         })
         .insert_bundle(SpriteBundle {
-            material: ship_material.clone(),
+            material: materials.ship_img.clone(),
             ..Default::default()
         });
 
@@ -178,7 +183,7 @@ fn initialize_components(
         })
         .insert_bundle(SpriteBundle {
             // FIXME: enemy ships should use a different sprite/color
-            material: ship_material,
+            material: materials.ship_img.clone(),
             ..Default::default()
         });
 
@@ -189,15 +194,7 @@ fn initialize_components(
             flex_direction: FlexDirection::Column,
             ..Default::default()
         },
-        text: Text::with_section(
-            "FPS Counter",
-            TextStyle {
-                font_size: 20.0,
-                color: Color::WHITE,
-                font: asset_server.load(FONT),
-            },
-            Default::default(),
-        ),
+        text: Text::with_section("FPS Counter", typography.body.clone(), Default::default()),
         ..Default::default()
     });
 
@@ -210,15 +207,7 @@ fn initialize_components(
                 flex_direction: FlexDirection::Row,
                 ..Default::default()
             },
-            text: Text::with_section(
-                "missileCount",
-                TextStyle {
-                    font_size: 20.0,
-                    color: Color::WHITE,
-                    font: asset_server.load(FONT),
-                },
-                Default::default(),
-            ),
+            text: Text::with_section("missileCount", typography.body.clone(), Default::default()),
             ..Default::default()
         });
 }
@@ -361,7 +350,7 @@ fn handle_spawn_missile_event(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: materials.missile_mat_handle.clone(),
+                material: materials.missile_img.clone(),
                 transform: Transform {
                     translation: Vec3::new(
                         missile_spawn_request.position.0.x,
@@ -435,7 +424,7 @@ fn create_explosion(
                 ..Default::default()
             })
             .insert_bundle(SpriteSheetBundle {
-                texture_atlas: materials.explosion_spritesheet_handle.clone(),
+                texture_atlas: materials.explosion_frames.clone(),
                 ..Default::default()
             });
     }
@@ -517,4 +506,10 @@ fn follow_ship(
     {
         cam_trans.translation = ship_trans.translation;
     }
+}
+
+fn delete_all_entities(mut commands: Commands, entities: Query<Entity>) {
+    entities
+        .iter()
+        .for_each(|e| commands.entity(e).despawn_recursive());
 }
