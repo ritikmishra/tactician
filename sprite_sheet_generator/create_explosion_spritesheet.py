@@ -93,7 +93,7 @@ if __name__ == "__main__":
         radius = 150.
     )
 
-    num_frames = 32
+    num_frames = 20
     diff = end - start
     delta: Explosion = diff/(num_frames - 1)
 

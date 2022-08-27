@@ -34,9 +34,6 @@ impl FromWorld for Typography {
 }
 
 pub struct Materials {
-    pub ship_img: Handle<ColorMaterial>,
-    pub planet_img: Handle<ColorMaterial>,
-    pub missile_img: Handle<ColorMaterial>,
     pub explosion_frames: Handle<TextureAtlas>,
 }
 
@@ -46,18 +43,7 @@ impl FromWorld for Materials {
             .get_resource::<AssetServer>()
             .expect("Unable to get AssetServer when initializing Materials resource");
 
-        let planet_handle = asset_server.load("images/planet.png");
-        let missile_handle = asset_server.load("images/missile.png");
-        let ship_handle = asset_server.load("images/ship.png");
         let explosion_frames_handle = asset_server.load("images/explosion_spritesheet.png");
-
-        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().expect(
-            "Unable to (mutably) get Assets<ColorMaterial> when initializing Materials resource",
-        );
-
-        let planet_material = materials.add(planet_handle.into());
-        let missile_material = materials.add(missile_handle.into());
-        let ship_material = materials.add(ship_handle.into());
 
         let mut texture_atlases = world.get_resource_mut::<Assets<TextureAtlas>>().expect(
             "Unable to (mutably) get Assets<TextureAtlas> when initializing Materials resource",
@@ -69,9 +55,6 @@ impl FromWorld for Materials {
         let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
         Materials {
-            ship_img: ship_material,
-            planet_img: planet_material,
-            missile_img: missile_material,
             explosion_frames: texture_atlas_handle,
         }
     }

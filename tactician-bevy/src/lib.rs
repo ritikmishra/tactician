@@ -1,52 +1,37 @@
 use std::num::NonZeroU32;
 
 use crate::bundles::*;
-use crate::resources::*;
 use crate::components::Size;
 use crate::components::*;
 use crate::events::*;
 use crate::misc::AppState;
+use crate::resources::*;
 use bevy::math::Vec2;
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
-    render::camera::Camera,
 };
-use bevy_prototype_lyon::{prelude::*, utils::Convert};
+use bevy_prototype_lyon::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 mod bundles;
-mod resources;
 mod components;
 mod events;
 mod menu;
 mod misc;
 mod physics;
+mod resources;
 use physics::PhysicsPlugin;
 
-#[cfg(all(not(feature = "wasm"), not(feature = "native")))]
-compile_error!("You have to build this binary (tactician-bevy) with either the 'wasm' feature or 'native' feature");
+// #[cfg(all(not(feature = "wasm"), not(feature = "native")))]
+// compile_error!("You have to build this binary (tactician-bevy) with either the 'wasm' feature or 'native' feature");
 
-
-
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub fn run_game() {
-    let mut app = App::build();
+    let mut app = App::new();
     app.add_plugins(DefaultPlugins);
-
-    #[cfg(feature = "wasm_panic")]
-    {
-        use console_error_panic_hook;
-        console_error_panic_hook::set_once();
-    }
-
-    #[cfg(feature = "wasm")]
-    {
-        use bevy_webgl2;
-        app.add_plugin(bevy_webgl2::WebGL2Plugin);
-    }
 
     app.add_plugin(ShapePlugin)
         .add_plugin(PhysicsPlugin)
@@ -60,54 +45,51 @@ pub fn run_game() {
     // Add default menu state
     app.add_state(AppState::Menu);
 
+    app.add_startup_system(init_camera);
+
     // menu stuff
-    app.add_system_set(SystemSet::on_enter(AppState::Menu).with_system(menu::init_menu.system()))
-        .add_system_set(
-            SystemSet::on_update(AppState::Menu).with_system(menu::update_menu.system()),
-        )
-        .add_system_set(
-            SystemSet::on_exit(AppState::Menu).with_system(delete_all_entities.system()),
-        );
+    app.add_system_set(SystemSet::on_enter(AppState::Menu).with_system(menu::init_menu))
+        .add_system_set(SystemSet::on_update(AppState::Menu).with_system(menu::update_menu))
+        .add_system_set(SystemSet::on_exit(AppState::Menu).with_system(delete_all_entities));
 
     // In game stuff
-    app.add_system_set(
-        SystemSet::on_enter(AppState::Game).with_system(initialize_components.system()),
-    )
-    .add_system_set(
-        SystemSet::on_update(AppState::Game)
-            .with_system(handle_window_zoom.system())
-            .with_system(enforce_size.system())
-            .with_system(animate_sprite_system.system())
-            .with_system(connect_ship_acceleration_to_user_input.system())
-            .with_system(fps_counter.system())
-            .with_system(kill_out_of_bounds_missiles.system())
-            .with_system(kill_expired_objects.system())
-            .with_system(explode_missiles_near_planets.system())
-            .with_system(handle_spawn_missile_event.system())
-            .with_system(update_missilecount.system())
-            .with_system(follow_ship.system())
-            .with_system(render_snailtrail.system())
-            .with_system(check_if_missile_should_kill_ship.system())
-            .with_system(create_explosion.system()),
-    )
-    .add_system_set(SystemSet::on_exit(AppState::Game).with_system(delete_all_entities.system()));
+    app.add_system_set(SystemSet::on_enter(AppState::Game).with_system(initialize_components))
+        .add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(handle_window_zoom)
+                .with_system(enforce_size)
+                .with_system(animate_sprite_system)
+                .with_system(connect_ship_acceleration_to_user_input)
+                .with_system(fps_counter)
+                .with_system(kill_out_of_bounds_missiles)
+                .with_system(kill_expired_objects)
+                .with_system(explode_missiles_near_planets)
+                .with_system(handle_spawn_missile_event)
+                .with_system(update_missilecount)
+                .with_system(follow_ship)
+                .with_system(render_snailtrail)
+                .with_system(check_if_missile_should_kill_ship)
+                .with_system(create_explosion),
+        )
+        .add_system_set(SystemSet::on_exit(AppState::Game).with_system(delete_all_entities));
 
     app.run()
+}
+
+fn init_camera(mut commands: Commands) {
+    // create the ui
+    // OrthographicCameraBundle is needed for the 2d rendering
+    // uicamerabundle is needed for text/UI element rendering
+    let mut camera_bundle = Camera2dBundle::default();
+    camera_bundle.transform.scale = Vec3::splat(5.0);
+    commands.spawn_bundle(camera_bundle).insert(ShipCamera);
 }
 
 fn initialize_components(
     mut commands: Commands,
     typography: Res<Typography>,
-    materials: Res<Materials>,
+    asset_server: Res<AssetServer>,
 ) {
-    // create the ui
-    // OrthographicCameraBundle is needed for the 2d rendering
-    // uicamerabundle is needed for text/UI element rendering
-    let mut camera_bundle = OrthographicCameraBundle::new_2d();
-    camera_bundle.transform.scale = Vec3::splat(5.0);
-    commands.spawn_bundle(camera_bundle);
-    commands.spawn_bundle(UiCameraBundle::default());
-
     commands
         .spawn_bundle(StarBundle {
             position: Position(Vec2::new(0., 0.)),
@@ -115,7 +97,7 @@ fn initialize_components(
             ..Default::default()
         })
         .insert_bundle(SpriteBundle {
-            material: materials.planet_img.clone(),
+            texture: asset_server.load("images/planet.png"),
             ..Default::default()
         });
 
@@ -133,7 +115,7 @@ fn initialize_components(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: materials.planet_img.clone(),
+                texture: asset_server.load("images/planet.png"),
                 ..Default::default()
             });
 
@@ -146,7 +128,7 @@ fn initialize_components(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: materials.planet_img.clone(),
+                texture: asset_server.load("images/planet.png"),
                 ..Default::default()
             });
     }
@@ -164,7 +146,7 @@ fn initialize_components(
             ..Default::default()
         })
         .insert_bundle(SpriteBundle {
-            material: materials.ship_img.clone(),
+            texture: asset_server.load("images/ship.png"),
             ..Default::default()
         });
 
@@ -183,7 +165,7 @@ fn initialize_components(
         })
         .insert_bundle(SpriteBundle {
             // FIXME: enemy ships should use a different sprite/color
-            material: materials.ship_img.clone(),
+            texture: asset_server.load("images/ship.png"),
             ..Default::default()
         });
 
@@ -194,7 +176,7 @@ fn initialize_components(
             flex_direction: FlexDirection::Column,
             ..Default::default()
         },
-        text: Text::with_section("FPS Counter", typography.body.clone(), Default::default()),
+        text: Text::from_section("FPS Counter", typography.body.clone()),
         ..Default::default()
     });
 
@@ -207,7 +189,7 @@ fn initialize_components(
                 flex_direction: FlexDirection::Row,
                 ..Default::default()
             },
-            text: Text::with_section("missileCount", typography.body.clone(), Default::default()),
+            text: Text::from_section("missileCount", typography.body.clone()),
             ..Default::default()
         });
 }
@@ -228,7 +210,7 @@ fn animate_sprite_system(
     texture_atlases: Res<Assets<TextureAtlas>>,
     mut query: Query<(
         Entity,
-        &mut Timer,
+        &mut AnimationTimer,
         &mut TextureAtlasSprite,
         &Handle<TextureAtlas>,
         Option<&AnimateOnce>,
@@ -246,7 +228,7 @@ fn animate_sprite_system(
             if next_sprite_idx == 0 && maybe_animate_once.is_some() {
                 commands.entity(entity_id).despawn();
             } else {
-                sprite.index = next_sprite_idx as u32;
+                sprite.index = next_sprite_idx;
             }
         }
     }
@@ -266,7 +248,7 @@ fn render_snailtrail(
     // and render the snail trail
     // TODO: only collect the position maybe 15 times a second? does not need to run every framemaybe only collect
     for (pos, mut trail) in objects_with_snail_trail.iter_mut() {
-        trail.points.push(pos.0.convert());
+        trail.points.push(Into::<(f32, f32)>::into(pos.0).into());
 
         // TODO: remove magic number
         if trail.points.len() > trail.max_points {
@@ -275,8 +257,10 @@ fn render_snailtrail(
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &*trail,
-                ShapeColors::new(Color::WHITE),
-                DrawMode::Stroke(StrokeOptions::default()),
+                DrawMode::Stroke(StrokeMode {
+                    options: StrokeOptions::default(),
+                    color: Color::WHITE,
+                }),
                 Transform::default(),
             ))
             .insert(SnailTrailEntityMarker);
@@ -330,7 +314,7 @@ fn handle_spawn_missile_event(
     mut event_reader: EventReader<SpawnMissileFromShip>,
     mut commands: Commands,
     time: Res<Time>,
-    materials: Res<Materials>,
+    asset_server: Res<AssetServer>,
 ) {
     for missile_spawn_request in event_reader.iter() {
         commands
@@ -350,7 +334,7 @@ fn handle_spawn_missile_event(
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
-                material: materials.missile_img.clone(),
+                texture: asset_server.load("images/missile.png"),
                 transform: Transform {
                     translation: Vec3::new(
                         missile_spawn_request.position.0.x,
@@ -397,7 +381,7 @@ fn check_if_missile_should_kill_ship(
         {
             if ship_team_id != missile_team_id {
                 let dist_from_ship_to_missile = (*ship_pos - *missile_pos).length();
-                let ship_size = ship_sprite.size.length() * 0.5 * ship_size;
+                let ship_size = 50.0 * 0.5 * ship_size;
                 if dist_from_ship_to_missile < ship_size {
                     commands.entity(ship_id).despawn();
                     commands.entity(missile_id).despawn();
@@ -433,13 +417,14 @@ fn create_explosion(
 fn explode_missiles_near_planets(
     mut commands: Commands,
     missiles: Query<(Entity, &Position, &Velocity), With<Missile>>,
-    planets: Query<(&Position, &Sprite, &Size), With<GravitySource>>,
+    planets: Query<(&Position, &Transform, &Size), With<GravitySource>>,
     mut explosion_event: EventWriter<CreateExplosionEvent>,
 ) {
     for (missile_id, missile_pos, missile_vel) in missiles.iter() {
         'planets_loop: for (planet_pos, planet_sprite, Size(planet_size)) in planets.iter() {
             // Assumes that the planet is circular, this will need to get changed if we want lumpy asteroid type things or smth
-            let planet_radius = planet_sprite.size.length() * planet_size * 0.5;
+            // tD
+            let planet_radius = 50.0 * planet_size * 0.5;
             let distance_between_missile_and_planet = (planet_pos.0 - missile_pos.0).length();
 
             if distance_between_missile_and_planet < planet_radius {
@@ -460,14 +445,10 @@ fn kill_out_of_bounds_missiles(
     window: Res<Windows>,
     missiles: Query<(Entity, &Transform), With<Missile>>,
 ) {
-    let cam_scale;
-    let cam_offset;
-    if let Some(cam_trans) = cam_trans_query.iter().next() {
-        cam_scale = cam_trans.scale.max_element();
-        cam_offset = cam_trans.translation;
-    } else {
-        return;
-    }
+    let cam_trans = cam_trans_query.single();
+    let cam_scale = cam_trans.scale.max_element();
+    let cam_offset = cam_trans.translation;
+
     let window = window.get_primary().unwrap();
     let (half_width, half_height) = (
         window.width() * cam_scale / 2.0,
@@ -486,29 +467,26 @@ fn kill_out_of_bounds_missiles(
 
 fn handle_window_zoom(
     keyboard_input: ResMut<Input<KeyCode>>,
-    mut camera: Query<&mut Transform, With<Camera>>,
+    mut camera: Query<&mut Transform, With<ShipCamera>>,
 ) {
-    if let Some(mut cam) = camera.iter_mut().next() {
-        // scale vec should always have x == y == z. so if x == y == z == 1, length squared == 3
-        if keyboard_input.pressed(KeyCode::Equals) && cam.scale.length_squared() > 3. {
-            cam.scale /= 1.01;
-        } else if keyboard_input.pressed(KeyCode::Minus) && cam.scale.length_squared() < 200. {
-            cam.scale *= 1.01;
-        }
+    let mut cam = camera.single_mut();
+    // scale vec should always have x == y == z. so if x == y == z == 1, length squared == 3
+    if keyboard_input.pressed(KeyCode::Equals) && cam.scale.length_squared() > 3. {
+        cam.scale /= 1.01;
+    } else if keyboard_input.pressed(KeyCode::Minus) && cam.scale.length_squared() < 200. {
+        cam.scale *= 1.01;
     }
 }
 
 fn follow_ship(
-    mut camera: Query<&mut Transform, (With<Camera>, Without<Ship>)>,
-    ship: Query<&Transform, (With<Ship>, Without<Camera>)>,
+    mut camera: Query<&mut Transform, (With<ShipCamera>, Without<Ship>)>,
+    ship: Query<&Transform, (With<Ship>, Without<ShipCamera>)>,
 ) {
-    if let (Some(mut cam_trans), Some(ship_trans)) = (camera.iter_mut().next(), ship.iter().next())
-    {
-        cam_trans.translation = ship_trans.translation;
-    }
+    let ship_trans = ship.iter().next().unwrap().translation;
+    camera.single_mut().translation = ship_trans;
 }
 
-fn delete_all_entities(mut commands: Commands, entities: Query<Entity>) {
+fn delete_all_entities(mut commands: Commands, entities: Query<Entity, Without<Camera>>) {
     entities
         .iter()
         .for_each(|e| commands.entity(e).despawn_recursive());

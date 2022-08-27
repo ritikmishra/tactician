@@ -1,14 +1,13 @@
 use crate::components::*;
 use bevy::{
-    core::Timer,
-    prelude::{Bundle, Handle, TextureAtlas},
-    sprite::ColorMaterial,
+    prelude::{Bundle, Component},
+    time::Timer,
 };
-use bevy_prototype_lyon::prelude::Geometry;
-use lyon::{
-    geom::euclid::default::Point2D,
-    path::{path::Builder, traits::PathBuilder, Polygon},
+use bevy_prototype_lyon::prelude::{
+    tess::path::{builder::PathBuilder, path::Builder, Polygon},
+    Geometry,
 };
+use lyon_geom::euclid::default::Point2D;
 
 #[derive(Bundle, Default)]
 pub struct StarBundle {
@@ -58,11 +57,24 @@ pub struct MissileBundle {
     pub team: Team,
 }
 
+#[derive(Debug, Component)]
+pub struct AnimationTimer(Timer);
+
+impl AnimationTimer {
+    pub fn tick(&mut self, duration: std::time::Duration) {
+        self.0.tick(duration);
+    }
+
+    pub fn finished(&self) -> bool {
+        self.0.finished()
+    }
+}
+
 #[derive(Debug, Bundle)]
 pub struct ExplosionBundle {
     pub explosion: Explosion,
     pub animate_once: AnimateOnce,
-    pub animate_timer: Timer,
+    pub animate_timer: AnimationTimer,
     pub position: Position,
     pub velocity: Velocity,
     pub size: Size,
@@ -73,7 +85,7 @@ impl Default for ExplosionBundle {
         Self {
             explosion: Explosion::default(),
             animate_once: AnimateOnce::default(),
-            animate_timer: Timer::from_seconds(1.0 / 60.0, true),
+            animate_timer: AnimationTimer(Timer::from_seconds(1.0 / 60.0, true)),
             position: Position::default(),
             velocity: Velocity::default(),
             size: Size(0.25),
@@ -81,7 +93,7 @@ impl Default for ExplosionBundle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Component)]
 pub struct SnailTrail {
     pub points: Vec<Point2D<f32>>,
     pub max_points: usize,
@@ -107,4 +119,5 @@ impl Geometry for SnailTrail {
 
 /// The snail trail component is separate from the actual ship/planet/missile
 /// The entire trail is despawned and redrawn
+#[derive(Debug, Clone, Copy, Component)]
 pub struct SnailTrailEntityMarker;

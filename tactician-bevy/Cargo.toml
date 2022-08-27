@@ -2,29 +2,18 @@
 name = "tactician-bevy"
 version = "0.1.0"
 authors = ["Ritik Mishra <ritik.mishra314@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-native = ["bevy/x11", "bevy/bevy_wgpu"]
-
-# wasm feature only works with wasm32-unknown-unknown target, otherwise some stuff is missing from winit
-wasm = ["bevy_webgl2", "getrandom/wasm-bindgen", "bevy/render", "bevy/png", "bevy/bevy_winit", "wasm-bindgen"]
-
-# do not use wasm panic for release builds
-wasm_panic = ["console_error_panic_hook"]
-
-
 [dependencies]
-bevy = { version = "0.5", default-features=false, features=["render", "png", "bevy_winit"] }
-bevy_webgl2 = { version = "0.5.2", optional = true }
-bevy_prototype_lyon = "0.3.1"
+bevy = "0.8.1"
+bevy_prototype_lyon = "0.6.0"
+lyon_geom = "=0.17.4"
 lyon = "*"
-rand = "0.8"
-getrandom = { version = "0.1" }
-console_error_panic_hook = { version = "*", optional = true }
-wasm-bindgen = { version = "*", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "*" }

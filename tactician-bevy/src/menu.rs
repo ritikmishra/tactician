@@ -11,7 +11,6 @@ pub fn init_menu(
     typography: Res<Typography>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn_bundle(UiCameraBundle::default());
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
@@ -21,14 +20,13 @@ pub fn init_menu(
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            material: color_materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0).into()),
+            color: Color::rgba(1.0, 0.0, 0.0, 0.0).into(),
+            // material: color_materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0).into()),
             ..Default::default()
         })
         .with_children(|parent| {
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
-                    "Tactician",
-                    typography.heading.clone(),
+                text: Text::from_section("Tactician", typography.heading.clone()).with_alignment(
                     TextAlignment {
                         horizontal: HorizontalAlign::Center,
                         vertical: VerticalAlign::Center,
@@ -45,16 +43,13 @@ pub fn init_menu(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    material: color_materials.add(Color::GRAY.into()),
+                    color: Color::GRAY.into(),
+                    // material: color_materials.add(Color::GRAY.into()),
                     ..Default::default()
                 })
                 .with_children(|parent| {
                     parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
-                            "Play",
-                            typography.body.clone(),
-                            Default::default(),
-                        ),
+                        text: Text::from_section("Play", typography.body.clone()),
                         ..Default::default()
                     });
                 });

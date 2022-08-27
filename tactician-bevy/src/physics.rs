@@ -10,13 +10,13 @@ pub const G: f32 = 0.000000001;
 pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
-    fn build(&self, app: &mut bevy::prelude::AppBuilder) {
-        app.add_system(apply_gravity_from_planets_to_ships.system())
-            .add_system(apply_gravity_among_planets.system())
-            .add_system(move_objects.system())
-            .add_system(apply_engine_acceleration.system())
-            .add_system(move_sprite_to_physics_pos.system())
-            .add_system(rotate_sprite_for_components_with_engine.system());
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.add_system(apply_gravity_from_planets_to_ships)
+            .add_system(apply_gravity_among_planets)
+            .add_system(move_objects)
+            .add_system(apply_engine_acceleration)
+            .add_system(move_sprite_to_physics_pos)
+            .add_system(rotate_sprite_for_components_with_engine);
     }
 }
 
@@ -30,8 +30,7 @@ fn move_sprite_to_physics_pos(mut physics_sprite: Query<(&mut Transform, &Positi
 
 fn rotate_sprite_for_components_with_engine(mut engine_sprite: Query<(&mut Transform, &Velocity)>) {
     for (mut sprite_transform, velocity) in engine_sprite.iter_mut() {
-        sprite_transform.rotation =
-            Quat::from_rotation_z(-velocity.0.angle_between(Vec2::Y));
+        sprite_transform.rotation = Quat::from_rotation_z(-velocity.0.angle_between(Vec2::Y));
     }
 }
 
