@@ -1,0 +1,15 @@
+{
+  "name": "tactician-bevy",
+  "collaborators": [
+    "Ritik Mishra <ritik.mishra314@gmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "tactician_bevy_bg.wasm",
+    "tactician_bevy.js",
+    "tactician_bevy.d.ts"
+  ],
+  "module": "tactician_bevy.js",
+  "types": "tactician_bevy.d.ts",
+  "sideEffects": false
+}

@@ -1,0 +1,19 @@
+[package]
+name = "tactician-bevy"
+version = "0.1.0"
+authors = ["Ritik Mishra <ritik.mishra314@gmail.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bevy = "0.8.1"
+bevy_prototype_lyon = "0.6.0"
+lyon_geom = "=0.17.4"
+lyon = "*"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "*" }

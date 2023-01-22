@@ -1,0 +1,80 @@
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      background: #202020;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: center;
+      color: white;
+      font-family: sans-serif;
+    }
+
+    canvas {
+      background-color: white;
+    }
+
+    @keyframes rotation {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(-360deg);
+      }
+    }
+
+    #loading {
+      /* makes it white */
+      filter: brightness(0) invert(1);
+      /* spins it */
+      animation-name: rotation;
+      animation-duration: 1000ms;
+      animation-iteration-count: infinite;
+      animation-timing-function: linear;
+      margin: 100px;
+    }
+  </style>
+  <script type="module">
+    import init from './pkg/tactician_bevy.js'
+    init()
+      .catch(e => console.error("somehow we got exception :/", e))
+      .finally(() => {
+        console.log("loaded successfully")
+        document.getElementById("loading").remove();
+
+        setTimeout(() => {
+          for (const canvas of document.getElementsByTagName("canvas")) {
+            canvas.focus();
+          }
+        }, 300);
+      })
+  </script>
+</head>
+
+<body>
+  <ul>
+    <li>Keybindings</li>
+    <ul>
+      <li>Up arrow - accelerate</li>
+      <li>Down arrow - decelerate</li>
+      <li>Space - launch missile</li>
+      <li>
+        <pre>=</pre> (equals/plus key) - zoom in
+      </li>
+      <li>
+        <pre>-</pre> (minus key)- zoom out
+      </li>
+    </ul>
+    <li>Other notes</li>
+    <ul>
+      <li>If the canvas is not in focus (i.e you didn't click on it), your keyboard input won't go through</li>
+      <li>Works best in Google Chrome</li>
+    </ul>
+  </ul>
+  <img id="loading" src="https://fonts.gstatic.com/s/i/materialicons/sync/v12/24px.svg">
+</body>
+
+</html>
